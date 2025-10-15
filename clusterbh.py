@@ -56,7 +56,7 @@ class clusterBH:
         self.mst_inf = 1.4 # [Msun] Maximum upper stellar mass at infinity. Serves as the upper boundary for the average stellar mass. Default value to stellar remnants, subject to change for IMFs that produce heavy stars.
         self.sigmans = 265 # [km/s] Velocity dispersion for NS. 
         self.gamma = 0.02 # Parameter for Coulomb logarithm.
-        self.x = 3./4 # Exponent used for finite escape time from Lagrange points. Introduces energy dependece on evaporation time scale.
+        self.x = 3/4 # Exponent used for finite escape time from Lagrange points. Introduces energy dependece on evaporation time scale.
         self.r = 0.8 # Prefactor for the energy of the cluster.
         self.tcross_index = 2 * sqrt(2 * pi / 3) # Prefactor for half-mass crossing time defined as tcr = 1/sqrt(G ρ).
         self.c_bh = 10 # Exponent for tides used in the BH evaporation rate. Currently deactivated. Used for describing the impact of the tidal field on the BH population. 
@@ -146,6 +146,12 @@ class clusterBH:
         # Output.
         self.output = False # A Boolean parameter to save the results of integration along with a few important quantities.
         self.outfile = "cluster.txt" # File to save the results, if needed.
+
+        # Interpolating functions
+        self.Mst_interp = None
+        self.Mbh_interp = None
+        self.rh_interp = None
+        self.M_interp = None
 
         # Conditions.
         self.ssp = True # Condition to use the SSP tools to extract the BHMF at any moment. Default option uses such tools. 
@@ -1688,7 +1694,14 @@ class clusterBH:
         self.beta_run = self.beta * self.beta_function(self.S) # Running beta factor.
         self.nu_run = numpy.maximum(self.nu_function(self.Z, sol.t), 0) if self.sev else 0 # Running stellar mass loss rate.
         self.sigma = 1.023 * sqrt(0.2 * self.G * self.M / self.rh) # [km/s] Velocity dispersion in the cluster.
-        
+
+        # Define interpolating functions:
+        if self.dense_output:
+            self.Mst_interp = lambda t: sol.sol(t * 1e3)[0]  # Mst(t) [Msun (Gyr)]
+            self.Mbh_interp = lambda t: sol.sol(t * 1e3)[1]  # Mbh(t) [Msun (Gyr)]
+            self.rh_interp = lambda t: sol.sol(t * 1e3)[2]  # rh(t) [pc (Gyr)]
+            self.M_interp = lambda t: self.Mst_interp(t) + self.Mbh_interp(t)
+
         # Checks if the results need to be saved. The default option is to save the solutions of the differential equations as well as the tidal radius and average masses of the two components. Additional inclusions are possible.
         if self.output:
 
