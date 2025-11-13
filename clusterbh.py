@@ -3,6 +3,7 @@ from __future__ import division
 import warnings
 
 import numpy
+import scipy
 from numpy import log, sqrt, pi, log10, exp, tanh, arctan, arctanh
 from scipy.integrate import IntegrationWarning
 from scipy.integrate import solve_ivp, cumulative_trapezoid, quad
@@ -55,7 +56,7 @@ class clusterBH:
         self.t_bhcreation = 8  # [Myrs] Time required to create all BHs.
         self.N_points = 500  # Number of points used for even spacing.
 
-        # Model parameters. 
+        # Model parameters.
         self.mns = 1.4  # [Msun] Mass of Neutron Stars (NS).
         self.mst_inf = 1.4  # [Msun] Maximum upper stellar mass at infinity. Serves as the upper boundary for the average stellar mass. Default value to stellar remnants, subject to change for IMFs that produce heavy stars.
         self.sigmans = 265  # [km/s] Velocity dispersion for NS.
@@ -155,7 +156,9 @@ class clusterBH:
         self.Mst_interp = None
         self.Mbh_interp = None
         self.rh_interp = None
+        self.mst_interp = None
         self.M_interp = None
+        self.m_interp = None
 
         # Conditions.
         self.ssp = True  # Condition to use the SSP tools to extract the BHMF at any moment. Default option uses such tools.
@@ -266,9 +269,9 @@ class clusterBH:
             'Constant': lambda rh, rt: self.Rht  # Constant evaporation rate.
         }
 
-        # Galactic model dictionary. 
+        # Galactic model dictionary.
         self.galactic_model_dict = {
-            # Dictionary for spherically symmetric galactic potentials. The index is used for the tidal radius only and it is dimensionless. The potential has units are [pc^2 / Myr^2]. 
+            # Dictionary for spherically symmetric galactic potentials. The index is used for the tidal radius only and it is dimensionless. The potential has units are [pc^2 / Myr^2].
             # Derivative of the potential is [pc / Myrs^2] and is used to specify the velocity profile. X2 is the ratio of the velocity profile squared over twice the velocity dispersion squared for isotropic models, currently used for tidal spiraling only. Density is in [Msun / pc^3] and is used in tidal spiraling.
             # Distance r is inserted in kpc everywhere. X2 is valid only for a Maxwellian distribution. Current treatment does not allow for combinations at different ranges of the galactocentric distance.
             'SIS': {
@@ -295,8 +298,8 @@ class clusterBH:
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg / (r + self.rp) ** 2,
                 'd2Phi_dr2': lambda r: - 2e-9 * self.G * self.Mg / (r + self.rp) ** 3,
                 'X2': lambda r: 6 * r / self.rp / ((1 + r / self.rp) ** 2 * (
-                            12 * r / self.rp * (1 + r / self.rp) ** 3 * log(1 + self.rp / r) - r / (r + self.rp) * (
-                                25 + 52 * r / self.rp + 42 * (r / self.rp) ** 2 + 12 * (r / self.rp) ** 3))),
+                        12 * r / self.rp * (1 + r / self.rp) ** 3 * log(1 + self.rp / r) - r / (r + self.rp) * (
+                        25 + 52 * r / self.rp + 42 * (r / self.rp) ** 2 + 12 * (r / self.rp) ** 3))),
                 'rho': lambda r: 1e-9 * self.Mg / (2 * pi * self.rp ** 2) * 1 / (r * (1 + r / self.rp) ** 3)
             },  # Hernquist model.
 
@@ -305,7 +308,7 @@ class clusterBH:
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / sqrt(r ** 2 + self.rp ** 2),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg * r / (r ** 2 + self.rp ** 2) ** (3 / 2),
                 'd2Phi_dr2': lambda r: - 1e-9 * self.G * self.Mg * (2 * r ** 2 - self.rp ** 2) / (
-                            r ** 2 + self.rp ** 2) ** (5 / 2),
+                        r ** 2 + self.rp ** 2) ** (5 / 2),
                 'X2': lambda r: 3 * (r / self.rp) ** 2 / (1 + (r / self.rp) ** 2),
                 'rho': lambda r: 1e-9 * 3 * self.Mg * self.rp ** 2 / (4 * pi * (self.rp ** 2 + r ** 2) ** (5 / 2))
             },  # Plummer model.
@@ -316,86 +319,86 @@ class clusterBH:
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg / (r * (r + self.rp)),
                 'd2Phi_dr2': lambda r: - 1e-9 * self.G * self.Mg * (self.rp + 2 * r) / (r ** 2 * (self.rp + r) ** 2),
                 'X2': lambda r: ((1 + r / self.rp) * (
-                            12 * (r / self.rp) ** 2 * (1 + r / self.rp) ** 2 * log(1 + self.rp / r) - 12 * (
-                                r / self.rp) ** 3 - 18 * (r / self.rp) ** 2 - 4 * r / self.rp + 1)) ** (-1),
+                        12 * (r / self.rp) ** 2 * (1 + r / self.rp) ** 2 * log(1 + self.rp / r) - 12 * (
+                        r / self.rp) ** 3 - 18 * (r / self.rp) ** 2 - 4 * r / self.rp + 1)) ** (-1),
                 'rho': lambda r: 1e-9 * self.Mg * self.rp / (4 * pi * r ** 2 * (r + self.rp) ** 2)
             },  # Jaffe model.
 
             'NFW': {
                 'rt_index': lambda r: 1 + (
-                            2 * log(1 + r / self.rp) - 2 * r / (r + self.rp) - (r / (r + self.rp)) ** 2) / (
-                                                  log(1 + r / self.rp) - r / (r + self.rp)),
+                        2 * log(1 + r / self.rp) - 2 * r / (r + self.rp) - (r / (r + self.rp)) ** 2) / (
+                                              log(1 + r / self.rp) - r / (r + self.rp)),
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / r * log(1 + r / self.rp) / (
-                            log(1 + self.Rmax / self.rp) - self.Rmax / (self.rp + self.Rmax)),
+                        log(1 + self.Rmax / self.rp) - self.Rmax / (self.rp + self.Rmax)),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg * (log(1 + r / self.rp) - r / (r + self.rp)) / r ** 2 / (
-                            log(1 + self.Rmax / self.rp) - self.Rmax / (self.rp + self.Rmax)),
+                        log(1 + self.Rmax / self.rp) - self.Rmax / (self.rp + self.Rmax)),
                 'd2Phi_dr2': lambda r: - 1e-9 * 2 * self.G * self.Mg / r ** 3 * (
-                            log(1 + r / self.rp) - r / (r + self.rp) - 0.5 * (r / (r + self.rp)) ** 2) / (
-                                                   log(1 + self.Rmax / self.rp) - self.Rmax / (self.rp + self.Rmax)),
+                        log(1 + r / self.rp) - r / (r + self.rp) - 0.5 * (r / (r + self.rp)) ** 2) / (
+                                               log(1 + self.Rmax / self.rp) - self.Rmax / (self.rp + self.Rmax)),
                 'X2': lambda r: (log(1 + r / self.rp) - r / (r + self.rp)) / (
-                            (r / self.rp) ** 2 * (1 + r / self.rp) ** 2 * (
-                                pi ** 2 + log(1 + self.rp / r) + 3 * log(1 + r / self.rp) ** 2 + 6 * spence(
-                            1 + r / self.rp)) + (1 + r / self.rp) ** 2 * log(1 + r / self.rp) - r / self.rp * (
-                                        1 + 9 * r / self.rp + 7 * (r / self.rp) ** 2 + 2 * log(1 + r / self.rp) * (
-                                            3 * (r / self.rp) ** 2 + 5 * r / self.rp + 2))),
+                        (r / self.rp) ** 2 * (1 + r / self.rp) ** 2 * (
+                        pi ** 2 + log(1 + self.rp / r) + 3 * log(1 + r / self.rp) ** 2 + 6 * spence(
+                    1 + r / self.rp)) + (1 + r / self.rp) ** 2 * log(1 + r / self.rp) - r / self.rp * (
+                                1 + 9 * r / self.rp + 7 * (r / self.rp) ** 2 + 2 * log(1 + r / self.rp) * (
+                                3 * (r / self.rp) ** 2 + 5 * r / self.rp + 2))),
                 'rho': lambda r: 1e-9 / (r * (r + self.rp) ** 2) * self.Mg / (
-                            4 * pi * (log(1 + self.Rmax / self.rp) - self.Rmax / (self.rp + self.Rmax)))
+                        4 * pi * (log(1 + self.Rmax / self.rp) - self.Rmax / (self.rp + self.Rmax)))
             },  # Navarro-Frenk-White model. At infinity it diverges so a truncation is inserted at Rmax.
 
             'Isochrone': {
                 'rt_index': lambda r: 1 + 1 / (self.rp + sqrt(r ** 2 + self.rp ** 2)) / sqrt(r ** 2 + self.rp ** 2) * (
-                            2 * r ** 2 - self.rp ** 2 * (self.rp + sqrt(r ** 2 + self.rp ** 2)) / sqrt(
-                        self.rp ** 2 + r ** 2)),
+                        2 * r ** 2 - self.rp ** 2 * (self.rp + sqrt(r ** 2 + self.rp ** 2)) / sqrt(
+                    self.rp ** 2 + r ** 2)),
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / (self.rp + sqrt(r ** 2 + self.rp ** 2)),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg * r / (
-                            (self.rp + sqrt(self.rp ** 2 + r ** 2)) ** 2 * sqrt(self.rp ** 2 + r ** 2)),
+                        (self.rp + sqrt(self.rp ** 2 + r ** 2)) ** 2 * sqrt(self.rp ** 2 + r ** 2)),
                 'd2Phi_dr2': lambda r: - 1e-9 * self.G * self.Mg * (
-                            (2 * r ** 2 - self.rp ** 2) * sqrt(r ** 2 + self.rp ** 2) - self.rp ** 3) / (
-                                                   (self.rp + sqrt(self.rp ** 2 + r ** 2)) ** 3 * (
-                                                       self.rp ** 2 + r ** 2) ** (3 / 2)),
+                        (2 * r ** 2 - self.rp ** 2) * sqrt(r ** 2 + self.rp ** 2) - self.rp ** 3) / (
+                                               (self.rp + sqrt(self.rp ** 2 + r ** 2)) ** 3 * (
+                                               self.rp ** 2 + r ** 2) ** (3 / 2)),
                 'X2': lambda r: (r / self.rp) ** 2 * (1 + 2 / 3 * (r / self.rp) ** 2 + sqrt(1 + (r / self.rp) ** 2)) / (
-                            2 * (1 + (r / self.rp) ** 2) ** 2 * (1 + sqrt(1 + (r / self.rp) ** 2)) ** 5 * (
-                                2 / 3 * log(1 + sqrt(1 + (r / self.rp) ** 2)) - 1 / 3 * log(
-                            1 + (r / self.rp) ** 2) + 1 / 6 * 1 / (
-                                            1 + sqrt(1 + (r / self.rp) ** 2)) ** 2 + 1 / 9 * 1 / (
-                                            1 + sqrt(1 + (r / self.rp) ** 2)) ** 3 - 2 / 3 / sqrt(
-                            1 + (r / self.rp) ** 2) + 1 / 6 / (1 + (r / self.rp) ** 2))),
+                        2 * (1 + (r / self.rp) ** 2) ** 2 * (1 + sqrt(1 + (r / self.rp) ** 2)) ** 5 * (
+                        2 / 3 * log(1 + sqrt(1 + (r / self.rp) ** 2)) - 1 / 3 * log(
+                    1 + (r / self.rp) ** 2) + 1 / 6 * 1 / (
+                                1 + sqrt(1 + (r / self.rp) ** 2)) ** 2 + 1 / 9 * 1 / (
+                                1 + sqrt(1 + (r / self.rp) ** 2)) ** 3 - 2 / 3 / sqrt(
+                    1 + (r / self.rp) ** 2) + 1 / 6 / (1 + (r / self.rp) ** 2))),
                 'rho': lambda r: 1e-9 * 3 * self.Mg * (
-                            1 + 2 / 3 * (r / self.rp) ** 2 + sqrt(1 + (r / self.rp) ** 2)) / (
-                                             4 * pi * self.rp ** 3 * (1 + (r / self.rp) ** 2) ** (3 / 2) * (
-                                                 1 + sqrt(1 + (r / self.rp) ** 2)) ** 3)
+                        1 + 2 / 3 * (r / self.rp) ** 2 + sqrt(1 + (r / self.rp) ** 2)) / (
+                                         4 * pi * self.rp ** 3 * (1 + (r / self.rp) ** 2) ** (3 / 2) * (
+                                         1 + sqrt(1 + (r / self.rp) ** 2)) ** 3)
             },  # Isochrone potential.
 
             'Dehnen': {
                 'rt_index': lambda r: (3 * r + self.gammap * self.rp) / (r + self.rp),
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / (self.rp * (2 - self.gammap)) * (
-                            1 - (r / (r + self.rp)) ** (2 - self.gammap)),
+                        1 - (r / (r + self.rp)) ** (2 - self.gammap)),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg * r ** (1 - self.gammap) / (r + self.rp) ** (
-                            3 - self.gammap),
+                        3 - self.gammap),
                 'd2Phi_dr2': lambda r: - 1e-9 * self.G * self.Mg / (
-                            r ** self.gammap * (r + self.rp) ** (4 - self.gammap)) * (
-                                                   2 * r + (self.gammap - 1) * self.rp),
+                        r ** self.gammap * (r + self.rp) ** (4 - self.gammap)) * (
+                                               2 * r + (self.gammap - 1) * self.rp),
                 'X2': lambda r: 5 / (2 * hyp2f1(1, 7 - 2 * self.gammap, 6, 1 / (1 + r / self.rp))),
                 'rho': lambda r: (3 - self.gammap) * 1e-9 * self.Mg * self.rp / (
-                            4 * pi * r ** self.gammap * (r + self.rp) ** (4 - self.gammap))
+                        4 * pi * r ** self.gammap * (r + self.rp) ** (4 - self.gammap))
             },
             # Dehnen model. Generalization of the Jaffe and Hernquist. Because of the form, it is finite as infinity. Avoid values for gammap equal to (7 + k) / 2 where k is integer.
 
             'Veltmann': {
                 'rt_index': lambda r: (3 * r ** self.gammap + (2 - self.gammap) * self.rp ** self.gammap) / (
-                            r ** self.gammap + self.rp ** self.gammap),
+                        r ** self.gammap + self.rp ** self.gammap),
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / (r ** self.gammap + self.rp ** self.gammap) ** (
-                            1 / self.gammap),
+                        1 / self.gammap),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg * r ** (self.gammap - 1) / (
-                            r ** self.gammap + self.rp ** self.gammap) ** (1 + 1 / self.gammap),
+                        r ** self.gammap + self.rp ** self.gammap) ** (1 + 1 / self.gammap),
                 'd2Phi_dr2': lambda r: - 1e-9 * self.G * self.Mg * r ** (self.gammap - 2) * (
-                            2 * r ** self.gammap + (1 - self.gammap) * self.rp ** self.gammap) / (
-                                                   r ** self.gammap + self.rp ** self.gammap) ** (2 + 1 / self.gammap),
+                        2 * r ** self.gammap + (1 - self.gammap) * self.rp ** self.gammap) / (
+                                               r ** self.gammap + self.rp ** self.gammap) ** (2 + 1 / self.gammap),
                 'X2': lambda r: (4 + self.gammap) / (2 * hyp2f1(1, 3 + 2 / self.gammap, 2 * (1 + 2 / self.gammap),
                                                                 1 / (1 + (r / self.rp) ** self.gammap))),
                 'rho': lambda r: 1e-9 * (1 + self.gammap) * self.Mg * self.rp ** self.gammap / (
-                            4 * pi * r ** (2 - self.gammap) * (self.rp ** self.gammap + r ** self.gammap) ** (
-                                2 + 1 / self.gammap))
+                        4 * pi * r ** (2 - self.gammap) * (self.rp ** self.gammap + r ** self.gammap) ** (
+                        2 + 1 / self.gammap))
             },  # Veltmann model. Generalization of the Hernquist and Plummer models. It is finite as infinity.
 
             'Soft': {
@@ -410,114 +413,114 @@ class clusterBH:
             'Power_law': {
                 'rt_index': lambda r: self.gammap,
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / (self.rp * (self.gammap - 2)) * r ** (2 - self.gammap) * (
-                            self.rp / self.Rmax) ** (3 - self.gammap),
+                        self.rp / self.Rmax) ** (3 - self.gammap),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg * r ** (1 - self.gammap) / self.rp ** (3 - self.gammap) * (
-                            self.rp / self.Rmax) ** (3 - self.gammap),
+                        self.rp / self.Rmax) ** (3 - self.gammap),
                 'd2Phi_dr2': lambda r: - 1e-9 * (self.gammap - 1) * self.G * self.Mg / self.rp ** 3 * (r / self.rp) ** (
                     - self.gammap) * (self.rp / self.Rmax) ** (3 - self.gammap),
                 'X2': lambda r: self.gammap - 1,
                 'rho': lambda r: 1e-9 * self.Mg / (
-                            4 * pi * self.rp ** 3 / (3 - self.gammap) / (self.rp / self.Rmax) ** (3 - self.gammap)) * (
-                                             self.rp / r) ** self.gammap
+                        4 * pi * self.rp ** 3 / (3 - self.gammap) / (self.rp / self.Rmax) ** (3 - self.gammap)) * (
+                                         self.rp / r) ** self.gammap
             },
             # Power-law profile. Exponent must be within [2, 3] so that it is well defined. A truncation at Rmax is needed.
 
             'MIS': {
                 'rt_index': lambda r: 3 - (r / self.rp) ** 3 / (1 + (r / self.rp) ** 2) / (
-                            (r / self.rp) - arctan((r / self.rp))),
+                        (r / self.rp) - arctan((r / self.rp))),
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / self.rp / (
-                            self.Rmax / self.rp - arctan(self.Rmax / self.rp)) * (
-                                             1 / (r / self.rp) * ((r / self.rp) - arctan((r / self.rp))) - log(
-                                         sqrt(1 + (r / self.rp) ** 2) / sqrt(1 + (self.Rmax / self.rp) ** 2))),
+                        self.Rmax / self.rp - arctan(self.Rmax / self.rp)) * (
+                                         1 / (r / self.rp) * ((r / self.rp) - arctan((r / self.rp))) - log(
+                                     sqrt(1 + (r / self.rp) ** 2) / sqrt(1 + (self.Rmax / self.rp) ** 2))),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg / r ** 2 * (r / self.rp - arctan(r / self.rp)) / (
-                            self.Rmax / self.rp - arctan(self.Rmax / self.rp)),
+                        self.Rmax / self.rp - arctan(self.Rmax / self.rp)),
                 'd2Phi_dr2': lambda r: - 1e-9 * self.G * self.Mg / r ** 3 * (r / self.rp - arctan(r / self.rp)) / (
-                            self.Rmax / self.rp - arctan(self.Rmax / self.rp)) * (
-                                                   2 - (r / self.rp) ** 3 / (1 + (r / self.rp) ** 2) / (
-                                                       (r / self.rp) - arctan(r / self.rp))),
+                        self.Rmax / self.rp - arctan(self.Rmax / self.rp)) * (
+                                               2 - (r / self.rp) ** 3 / (1 + (r / self.rp) ** 2) / (
+                                               (r / self.rp) - arctan(r / self.rp))),
                 'X2': lambda r: (r / self.rp - arctan(r / self.rp)) / ((1 + (r / self.rp) ** 2) * (
-                            r / self.rp * (pi ** 2 / 4 - arctan(r / self.rp) ** 2) - 2 * arctan(r / self.rp))),
+                        r / self.rp * (pi ** 2 / 4 - arctan(r / self.rp) ** 2) - 2 * arctan(r / self.rp))),
                 'rho': lambda r: 1e-9 * self.Mg / (
-                            4 * pi * self.rp ** 3 * (self.Rmax / self.rp - arctan(self.Rmax / self.rp))) * 1 / (
-                                             1 + (r / self.rp) ** 2)
+                        4 * pi * self.rp ** 3 * (self.Rmax / self.rp - arctan(self.Rmax / self.rp))) * 1 / (
+                                         1 + (r / self.rp) ** 2)
             },  # Modified Isothermal Sphere.
 
             'Perfect_sphere': {
                 'rt_index': lambda r: 3 - 2 * (r / self.rp) ** 3 / (1 + (r / self.rp) ** 2) ** 2 / (
-                            arctan(r / self.rp) - (r / self.rp) / (1 + (r / self.rp) ** 2)),
+                        arctan(r / self.rp) - (r / self.rp) / (1 + (r / self.rp) ** 2)),
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / r / (pi / 2) * arctan(r / self.rp),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg / r ** 2 * (
-                            arctan(r / self.rp) - (r / self.rp) / (1 + (r / self.rp) ** 2)) / (pi / 2),
+                        arctan(r / self.rp) - (r / self.rp) / (1 + (r / self.rp) ** 2)) / (pi / 2),
                 'd2Phi_dr2': lambda r: - 2e-9 * self.G * self.Mg * (
-                            arctan(r / self.rp) - (r / self.rp) / (1 + (r / self.rp) ** 2)) / (pi / 2) / r ** 3 * (
-                                                   1 - (r / self.rp) ** 3 / (1 + (r / self.rp) ** 2) ** 2 / (
-                                                       arctan(r / self.rp) - (r / self.rp) / (1 + (r / self.rp) ** 2))),
+                        arctan(r / self.rp) - (r / self.rp) / (1 + (r / self.rp) ** 2)) / (pi / 2) / r ** 3 * (
+                                               1 - (r / self.rp) ** 3 / (1 + (r / self.rp) ** 2) ** 2 / (
+                                               arctan(r / self.rp) - (r / self.rp) / (1 + (r / self.rp) ** 2))),
                 'X2': lambda r: (arctan(r / self.rp) - (r / self.rp) / (1 + (r / self.rp) ** 2)) / (
-                            (r / self.rp) * (3 * (r / self.rp) ** 2 + 4) / 2 + 3 / 2 * (r / self.rp) * (
-                                (1 + (r / self.rp) ** 2) * arctan(r / self.rp)) ** 2 + (
-                                        3 * (r / self.rp) ** 4 + 5 * (r / self.rp) ** 2 + 2) * arctan(
-                        r / self.rp) - 3 * pi ** 2 / 8 * (r / self.rp) * (1 + (r / self.rp) ** 2) ** 2),
+                        (r / self.rp) * (3 * (r / self.rp) ** 2 + 4) / 2 + 3 / 2 * (r / self.rp) * (
+                        (1 + (r / self.rp) ** 2) * arctan(r / self.rp)) ** 2 + (
+                                3 * (r / self.rp) ** 4 + 5 * (r / self.rp) ** 2 + 2) * arctan(
+                    r / self.rp) - 3 * pi ** 2 / 8 * (r / self.rp) * (1 + (r / self.rp) ** 2) ** 2),
                 'rho': lambda r: 1e-9 * self.Mg / (pi ** 2 * self.rp ** 3) * 1 / (1 + (r / self.rp) ** 2) ** 2
             },  # Perfect Sphere.
 
             'Modified_Hubble': {
                 'rt_index': lambda r: 3 - (r / self.rp) ** 3 / (1 + (r / self.rp) ** 2) ** (3 / 2) / (
-                            arctanh((r / self.rp) / sqrt(1 + (r / self.rp) ** 2)) - (r / self.rp) / sqrt(
-                        1 + (r / self.rp) ** 2)),
+                        arctanh((r / self.rp) / sqrt(1 + (r / self.rp) ** 2)) - (r / self.rp) / sqrt(
+                    1 + (r / self.rp) ** 2)),
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / r * arctanh(r / self.rp / sqrt(1 + (r / self.rp) ** 2)) / (
-                            arctanh(self.Rpmax / self.rp / sqrt(
-                                1 + (self.Rpmax / self.rp) ** 2)) - self.Rpmax / self.rp / sqrt(
-                        1 + (self.Rpmax / self.rp) ** 2)),
+                        arctanh(self.Rpmax / self.rp / sqrt(
+                            1 + (self.Rpmax / self.rp) ** 2)) - self.Rpmax / self.rp / sqrt(
+                    1 + (self.Rpmax / self.rp) ** 2)),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg / r ** 2 * (
-                            arctanh((r / self.rp) / sqrt(1 + (r / self.rp) ** 2)) - (r / self.rp) / sqrt(
-                        1 + (r / self.rp) ** 2)) / (arctanh(
+                        arctanh((r / self.rp) / sqrt(1 + (r / self.rp) ** 2)) - (r / self.rp) / sqrt(
+                    1 + (r / self.rp) ** 2)) / (arctanh(
                     (self.Rmax / self.rp) / sqrt(1 + (self.Rmax / self.rp) ** 2)) - (self.Rmax / self.rp) / sqrt(
                     1 + (self.Rmax / self.rp) ** 2)),
                 'd2Phi_dr2': lambda r: - 1e-9 * self.G * self.Mg / r ** 3 * (
-                            arctanh((r / self.rp) / sqrt(1 + (r / self.rp) ** 2)) - (r / self.rp) / sqrt(
-                        1 + (r / self.rp) ** 2)) / (arctanh(
+                        arctanh((r / self.rp) / sqrt(1 + (r / self.rp) ** 2)) - (r / self.rp) / sqrt(
+                    1 + (r / self.rp) ** 2)) / (arctanh(
                     (self.Rmax / self.rp) / sqrt(1 + (self.Rmax / self.rp) ** 2)) - (self.Rmax / self.rp) / sqrt(
                     1 + (self.Rmax / self.rp) ** 2)) * (2 - (r / self.rp) ** 3 / (1 + (r / self.rp) ** 2) ** (3 / 2) / (
-                            arctanh((r / self.rp) / sqrt(1 + (r / self.rp) ** 2)) - (r / self.rp) / sqrt(
-                        1 + (r / self.rp) ** 2))),
+                        arctanh((r / self.rp) / sqrt(1 + (r / self.rp) ** 2)) - (r / self.rp) / sqrt(
+                    1 + (r / self.rp) ** 2))),
                 'X2': lambda r: (arctanh((r / self.rp) / sqrt(1 + (r / self.rp) ** 2)) - (r / self.rp) / sqrt(
                     1 + (r / self.rp) ** 2)) / ((r / self.rp) * sqrt(1 + (r / self.rp) ** 2) + (
-                            2 * (r / self.rp) ** 2 + 1) * (1 + (r / self.rp) ** 2) * log(
+                        2 * (r / self.rp) ** 2 + 1) * (1 + (r / self.rp) ** 2) * log(
                     ((r / self.rp) + sqrt(1 + (r / self.rp) ** 2)) / (sqrt(1 + (r / self.rp) ** 2) - (r / self.rp))) - (
-                                                            r / self.rp) * (1 + (r / self.rp) ** 2) ** (3 / 2) * (
-                                                            4 * log(2) + 2 * log(1 + (r / self.rp) ** 2))),
+                                                        r / self.rp) * (1 + (r / self.rp) ** 2) ** (3 / 2) * (
+                                                        4 * log(2) + 2 * log(1 + (r / self.rp) ** 2))),
                 'rho': lambda r: 1e-9 * self.Mg / (4 * pi * self.rp ** 3 * (
-                            arctanh((self.Rmax / self.rp) / (sqrt(1 + (self.Rmax / self.rp) ** 2))) - (
-                                self.Rmax / self.rp) / (sqrt(1 + (self.Rmax / self.rp) ** 2)))) / (
-                                             1 + (r / self.rp) ** 2) ** (3 / 2)
+                        arctanh((self.Rmax / self.rp) / (sqrt(1 + (self.Rmax / self.rp) ** 2))) - (
+                        self.Rmax / self.rp) / (sqrt(1 + (self.Rmax / self.rp) ** 2)))) / (
+                                         1 + (r / self.rp) ** 2) ** (3 / 2)
             },  # Hubble.
             # MIS, Perfect sphere and Hubble are just a few examples that have an analytical formula for the velocity dispersion. Other options are available in the Zhao model, however numerically.
 
             'Moore': {
                 'rt_index': lambda r: 3 - (3 - self.gammap) / log(1 + (r / self.rp) ** (3 - self.gammap)) * (
-                            r / self.rp) ** (3 - self.gammap) / (1 + (r / self.rp) ** (3 - self.gammap)),
+                        r / self.rp) ** (3 - self.gammap) / (1 + (r / self.rp) ** (3 - self.gammap)),
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / self.rp / log(
                     1 + (self.Rmax / self.rp) ** (3 - self.gammap)) * (
-                                             self.rp / r * log(1 + (r / self.rp) ** (3 - self.gammap)) + beta(
-                                         1 / (3 - self.gammap), (2 - self.gammap) / (3 - self.gammap)) * betainc(
-                                         1 / (3 - self.gammap), (2 - self.gammap) / (3 - self.gammap),
-                                         1 / (1 + (r / self.rp) ** (3 - self.gammap)))),
+                                         self.rp / r * log(1 + (r / self.rp) ** (3 - self.gammap)) + beta(
+                                     1 / (3 - self.gammap), (2 - self.gammap) / (3 - self.gammap)) * betainc(
+                                     1 / (3 - self.gammap), (2 - self.gammap) / (3 - self.gammap),
+                                     1 / (1 + (r / self.rp) ** (3 - self.gammap)))),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg / r ** 2 * log(
                     1 + (r / self.rp) ** (3 - self.gammap)) / log(1 + (self.Rmax / self.rp) ** (3 - self.gammap)),
                 'd2Phi_dr2': lambda r: - 1e-9 * self.G * self.Mg / r ** 3 / log(
                     1 + (self.Rmax / self.rp) ** (3 - self.gammap)) * (2 - (3 - self.gammap) / log(
                     1 + (r / self.rp) ** (3 - self.gammap)) * (r / self.rp) ** (3 - self.gammap) / (
-                                                                                   1 + (r / self.rp) ** (
-                                                                                       3 - self.gammap))),
+                                                                               1 + (r / self.rp) ** (
+                                                                               3 - self.gammap))),
                 'X2': numpy.vectorize(lambda r: (3 - self.gammap) * log(1 + (r / self.rp) ** (3 - self.gammap)) / (
-                            - 2 * (r / self.rp) ** (1 + self.gammap) * (1 + (r / self.rp) ** (3 - self.gammap)) * quad(
-                        lambda t: t ** (-1 - (1 + self.gammap) / (3 - self.gammap)) * (1 - t) ** (
-                                    4 / (3 - self.gammap) - 1) * log(1 - t),
-                        (r / self.rp) ** (3 - self.gammap) / (1 + (r / self.rp) ** (3 - self.gammap)), 1, limit=1000,
-                        epsabs=1e-6, epsrel=1e-6)[0])),
+                        - 2 * (r / self.rp) ** (1 + self.gammap) * (1 + (r / self.rp) ** (3 - self.gammap)) * quad(
+                    lambda t: t ** (-1 - (1 + self.gammap) / (3 - self.gammap)) * (1 - t) ** (
+                            4 / (3 - self.gammap) - 1) * log(1 - t),
+                    (r / self.rp) ** (3 - self.gammap) / (1 + (r / self.rp) ** (3 - self.gammap)), 1, limit=1000,
+                    epsabs=1e-6, epsrel=1e-6)[0])),
                 'rho': lambda r: 1e-9 * (3 - self.gammap) * self.Mg / (
-                            4 * pi * self.rp ** 3 * log(1 + (self.Rmax / self.rp) ** (3 - self.gammap))) / (
-                                             r / self.rp) ** self.gammap / (1 + (r / self.rp) ** (3 - self.gammap))
+                        4 * pi * self.rp ** 3 * log(1 + (self.Rmax / self.rp) ** (3 - self.gammap))) / (
+                                         r / self.rp) ** self.gammap / (1 + (r / self.rp) ** (3 - self.gammap))
             },
             # Moore / Generalized NFW. Mass diverges so it is truncated up to Rmax. It is generelized, but the user can select gammap=1.5.
 
@@ -526,19 +529,19 @@ class clusterBH:
                     - (r / self.rp) ** self.gammap) / gamma((3 - self.gammap1) / self.gammap) / gammainc(
                     (3 - self.gammap1) / self.gammap, (r / self.rp) ** self.gammap),
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / self.rp * (
-                            self.rp / r * gammainc((3 - self.gammap1) / self.gammap,
-                                                   (r / self.rp) ** self.gammap) + gamma(
-                        (2 - self.gammap1) / self.gammap) * gammaincc((2 - self.gammap1) / self.gammap,
-                                                                      (r / self.rp) ** self.gammap) / gamma(
-                        (3 - self.gammap1) / self.gammap)),
+                        self.rp / r * gammainc((3 - self.gammap1) / self.gammap,
+                                               (r / self.rp) ** self.gammap) + gamma(
+                    (2 - self.gammap1) / self.gammap) * gammaincc((2 - self.gammap1) / self.gammap,
+                                                                  (r / self.rp) ** self.gammap) / gamma(
+                    (3 - self.gammap1) / self.gammap)),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg * gammainc((3 - self.gammap1) / self.gammap,
                                                                         (r / self.rp) ** self.gammap) / r ** 2,
                 'd2Phi_dr2': lambda r: - 1e-9 * self.G * self.Mg * gammainc((3 - self.gammap1) / self.gammap,
                                                                             (r / self.rp) ** self.gammap) / r ** 3 * (
-                                                   2 - self.gammap * (r / self.rp) ** (3 - self.gammap1) * exp(
-                                               -(r / self.rp) ** self.gammap) / gamma(
-                                               (3 - self.gammap1) / self.gammap) / gammainc(
-                                               (3 - self.gammap1) / self.gammap, (r / self.rp) ** self.gammap)),
+                                               2 - self.gammap * (r / self.rp) ** (3 - self.gammap1) * exp(
+                                           -(r / self.rp) ** self.gammap) / gamma(
+                                           (3 - self.gammap1) / self.gammap) / gammainc(
+                                           (3 - self.gammap1) / self.gammap, (r / self.rp) ** self.gammap)),
                 'X2': numpy.vectorize(lambda r: self.gammap * gammainc((3 - self.gammap1) / self.gammap,
                                                                        (r / self.rp) ** self.gammap) * exp(
                     - (r / self.rp) ** self.gammap) / (2 * (r / self.rp) ** (1 + self.gammap1) * quad(
@@ -552,53 +555,53 @@ class clusterBH:
 
             'Zhao': {
                 'rt_index': lambda r: 3 - self.gammap * (r / self.rp) ** (3 - self.gammap2) / (
-                            (1 + (r / self.rp) ** self.gammap) ** (
-                                (self.gammap1 - self.gammap2) / self.gammap) * betainc((3 - self.gammap2) / self.gammap,
-                                                                                       (self.gammap1 - 3) / self.gammap,
-                                                                                       (r ** self.gammap / (
-                                                                                                   self.rp ** self.gammap + r ** self.gammap))) * beta(
-                        (3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap)),
+                        (1 + (r / self.rp) ** self.gammap) ** (
+                        (self.gammap1 - self.gammap2) / self.gammap) * betainc((3 - self.gammap2) / self.gammap,
+                                                                               (self.gammap1 - 3) / self.gammap,
+                                                                               (r ** self.gammap / (
+                                                                                       self.rp ** self.gammap + r ** self.gammap))) * beta(
+                    (3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap)),
                 'Phi': lambda r: - 1e-3 * self.G * self.Mg / self.rp * (
-                            self.rp / r * betainc((3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap, (
-                                r ** self.gammap / (self.rp ** self.gammap + r ** self.gammap))) + betainc(
-                        (self.gammap1 - 2) / self.gammap, (2 - self.gammap2) / self.gammap,
-                        (self.rp ** self.gammap / (self.rp ** self.gammap + r ** self.gammap))) * beta(
-                        (self.gammap1 - 2) / self.gammap, (2 - self.gammap2) / self.gammap) / beta(
-                        (3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap)),
+                        self.rp / r * betainc((3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap, (
+                        r ** self.gammap / (self.rp ** self.gammap + r ** self.gammap))) + betainc(
+                    (self.gammap1 - 2) / self.gammap, (2 - self.gammap2) / self.gammap,
+                    (self.rp ** self.gammap / (self.rp ** self.gammap + r ** self.gammap))) * beta(
+                    (self.gammap1 - 2) / self.gammap, (2 - self.gammap2) / self.gammap) / beta(
+                    (3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap)),
                 'dPhi_dr': lambda r: 1e-6 * self.G * self.Mg / r ** 2 * betainc((3 - self.gammap2) / self.gammap,
                                                                                 (self.gammap1 - 3) / self.gammap, (
-                                                                                            r ** self.gammap / (
-                                                                                                self.rp ** self.gammap + r ** self.gammap))),
+                                                                                        r ** self.gammap / (
+                                                                                        self.rp ** self.gammap + r ** self.gammap))),
                 'd2Phi_dr2': lambda r: - 2e-9 * self.G * self.Mg / r ** 3 * betainc((3 - self.gammap2) / self.gammap,
                                                                                     (self.gammap1 - 3) / self.gammap, (
-                                                                                                r ** self.gammap / (
-                                                                                                    self.rp ** self.gammap + r ** self.gammap))) + 1e-9 * self.gammap * self.G * self.Mg / r ** 3 * (
-                                                   (r / self.rp) ** (3 - self.gammap2)) / (
-                                                   1 + (r / self.rp) ** self.gammap) ** (
-                                                   (self.gammap1 - self.gammap2) / self.gammap) / beta(
+                                                                                            r ** self.gammap / (
+                                                                                            self.rp ** self.gammap + r ** self.gammap))) + 1e-9 * self.gammap * self.G * self.Mg / r ** 3 * (
+                                               (r / self.rp) ** (3 - self.gammap2)) / (
+                                               1 + (r / self.rp) ** self.gammap) ** (
+                                               (self.gammap1 - self.gammap2) / self.gammap) / beta(
                     (3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap),
                 'X2': numpy.vectorize(
                     lambda r: self.gammap * betainc((3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap,
                                                     (r ** self.gammap / (
-                                                                self.rp ** self.gammap + r ** self.gammap))) / (
-                                          2 * (r / self.rp) ** (1 + self.gammap2) * (
-                                              1 + (r / self.rp) ** self.gammap) ** (
-                                                      (self.gammap1 - self.gammap2) / self.gammap) * quad(
-                                      lambda t: betainc((3 - self.gammap2) / self.gammap,
-                                                        (self.gammap1 - 3) / self.gammap, t) * t ** (
-                                                            - 1 - (1 + self.gammap2) / self.gammap) * (1 - t) ** (
-                                                            - 1 + (self.gammap1 + 1) / self.gammap),
-                                      (r / self.rp) ** self.gammap / (1 + (r / self.rp) ** self.gammap), 1, limit=1000,
-                                      epsabs=1e-6, epsrel=1e-6)[0])),
+                                                            self.rp ** self.gammap + r ** self.gammap))) / (
+                                      2 * (r / self.rp) ** (1 + self.gammap2) * (
+                                      1 + (r / self.rp) ** self.gammap) ** (
+                                              (self.gammap1 - self.gammap2) / self.gammap) * quad(
+                                  lambda t: betainc((3 - self.gammap2) / self.gammap,
+                                                    (self.gammap1 - 3) / self.gammap, t) * t ** (
+                                                    - 1 - (1 + self.gammap2) / self.gammap) * (1 - t) ** (
+                                                    - 1 + (self.gammap1 + 1) / self.gammap),
+                                  (r / self.rp) ** self.gammap / (1 + (r / self.rp) ** self.gammap), 1, limit=1000,
+                                  epsabs=1e-6, epsrel=1e-6)[0])),
                 'rho': lambda r: 1e-9 * self.gammap * self.Mg / (4 * pi * self.rp ** 3) / (r / self.rp) ** (
                     self.gammap2) / (1 + (r / self.rp) ** self.gammap) ** (
-                                             (self.gammap1 - self.gammap2) / self.gammap) / beta(
+                                         (self.gammap1 - self.gammap2) / self.gammap) / beta(
                     (3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap)
             }
             # Zhao model. Generalizes the families introduced before. For example, it agrees with Hernquist, Plummer, Jaffe, pergect sphere. NFW and Moore struggle with the incomplete beta. The user should keep in mind to always insert well behaved exponents so that the special functions are well defined, that is gammap > 0, gammap1 > 3, gammap2 < 3. The family of models with gammap2=0 does not have an analytic expression for the velocity dispersion squared so it is not presented separately. The same applies to generalized Moore models with gammap -> 3 - gammap2 + epsilon, gammap1 -> 3 + epsilon.
         }
 
-        # Future extension: Add a SMBH in the model. This shifts rt_index, Vc(r) or M(r) and X2. 
+        # Future extension: Add a SMBH in the model. This shifts rt_index, Vc(r) or M(r) and X2.
         # Future extension2: Add a dictionary with anisotropic models and the solution for the radial velocity dispersion from Jean's equations.
 
         # Cluster model dictionary. NFW, Power-law, MIS and Hubble use a fixed maximum distance to estimate the potential and its derivative, to avoid divergences.
@@ -619,80 +622,80 @@ class clusterBH:
                       'dPhi_dr': lambda r, M: self.G * M / (r * (r + self.rpc))},
 
             'NFW': {'phi': lambda r, M: - self.G * M / r * log(1 + r / self.rpc) / (
-                        log(1 + self.Rmaxc / self.rpc) - self.Rmaxc / (self.rpc + self.Rmaxc)),
+                    log(1 + self.Rmaxc / self.rpc) - self.Rmaxc / (self.rpc + self.Rmaxc)),
                     'dPhi_dr': lambda r, M: self.G * M * (log(1 + r / self.rpc) - r / (r + self.rpc)) / (
-                                log(1 + self.Rmaxc / self.rpc) - self.Rmaxc / (self.rpc + self.Rmaxc)) / r ** 2},
+                            log(1 + self.Rmaxc / self.rpc) - self.Rmaxc / (self.rpc + self.Rmaxc)) / r ** 2},
 
             'Isochrone': {'phi': lambda r, M: - self.G * M / (self.rpc + sqrt(r ** 2 + self.rpc ** 2)),
                           'dPhi_dr': lambda r, M: self.G * M * r / (
-                                      (self.rpc + sqrt(self.rpc ** 2 + r ** 2)) ** 2 * sqrt(self.rpc ** 2 + r ** 2))},
+                                  (self.rpc + sqrt(self.rpc ** 2 + r ** 2)) ** 2 * sqrt(self.rpc ** 2 + r ** 2))},
 
             'Dehnen': {'phi': lambda r, M: - self.G * M / (self.rpc ** (2 - self.gammapc)) * (
-                        1 - (r / (r + self.rpc)) ** (2 - self.gammapc)),
+                    1 - (r / (r + self.rpc)) ** (2 - self.gammapc)),
                        'dPhi_dr': lambda r, M: self.G * M * r ** (1 - self.gammapc) / (r + self.rpc) ** (
-                                   3 - self.gammapc)},
+                               3 - self.gammapc)},
 
             'Veltmann': {
                 'phi': lambda r, M: - self.G * M / (r ** self.gammapc + self.rpc ** self.gammapc) ** (1 / self.gammapc),
                 'dPhi_dr': lambda r, M: self.G * M * r ** (self.gammapc - 1) / (
-                            r ** self.gammapc + self.rpc ** self.gammapc) ** (1 + 1 / self.gammapc)},
+                        r ** self.gammapc + self.rpc ** self.gammapc) ** (1 + 1 / self.gammapc)},
 
             'Soft': {'phi': lambda r, M: - self.G * M / r * (1 + self.rpc / r),
                      'dPhi_dr': lambda r, M: self.G * M / r ** 2 * (1 + 2 * self.rpc / r)},
 
             'Power_law': {
                 'phi': lambda r, M: - self.G * M / (self.rpc * (self.gammapc - 2)) * r ** (2 - self.gammapc) * (
-                            self.rpc / self.Rmaxc) ** (3 - self.gammapc),
+                        self.rpc / self.Rmaxc) ** (3 - self.gammapc),
                 'dPhi_dr': lambda r, M: self.G * M * r ** (1 - self.gammapc) / self.rpc ** (3 - self.gammapc) * (
-                            self.rpc / self.Rmaxc) ** (3 - self.gammapc)},
+                        self.rpc / self.Rmaxc) ** (3 - self.gammapc)},
 
             'MIS': {'phi': lambda r, M: - self.G * M / self.rpc / (
-                        self.Rmaxc / self.rpc - arctan(self.Rmaxc / self.rpc)) * (1 / (r / self.rpc) * (
-                        (r / self.rpc) - arctan((r / self.rpc))) - log(
+                    self.Rmaxc / self.rpc - arctan(self.Rmaxc / self.rpc)) * (1 / (r / self.rpc) * (
+                    (r / self.rpc) - arctan((r / self.rpc))) - log(
                 sqrt(1 + (r / self.rpc) ** 2) / sqrt(1 + (self.Rmaxc / self.rpc) ** 2))),
                     'dPhi_dr': lambda r, M: self.G * M / r ** 2 * (r / self.rpc - arctan(r / self.rpc)) / (
-                                self.Rmaxc / self.rpc - arctan(self.Rmaxc / self.rpc))},
+                            self.Rmaxc / self.rpc - arctan(self.Rmaxc / self.rpc))},
 
             'Perfect_sphere': {'phi': lambda r, M: - self.G * M / r / (pi / 2) * arctan(r / self.rpc),
                                'dPhi_dr': lambda r, M: self.G * M / r ** 2 * (
-                                           arctan(r / self.rpc) - (r / self.rpc) / (1 + (r / self.rpc) ** 2)) / (
-                                                                   pi / 2)},
+                                       arctan(r / self.rpc) - (r / self.rpc) / (1 + (r / self.rpc) ** 2)) / (
+                                                               pi / 2)},
 
             'Modified_Hubble': {
                 'phi': lambda r, M: - self.G * M / r * arctanh(r / self.rpc / sqrt(1 + (r / self.rpc) ** 2)) / (arctanh(
                     self.Rpmaxc / self.rpc / sqrt(1 + (self.Rpmaxc / self.rpc) ** 2)) - self.Rpmaxc / self.rpc / sqrt(
                     1 + (self.Rpmaxc / self.rpc) ** 2)), 'dPhi_dr': lambda r, M: self.G * M / r ** 2 * (
-                            arctanh((r / self.rpc) / sqrt(1 + (r / self.rpc) ** 2)) - (r / self.rpc) / sqrt(
-                        1 + (r / self.rpc) ** 2)) / (arctanh(
+                        arctanh((r / self.rpc) / sqrt(1 + (r / self.rpc) ** 2)) - (r / self.rpc) / sqrt(
+                    1 + (r / self.rpc) ** 2)) / (arctanh(
                     (self.Rmaxc / self.rpc) / sqrt(1 + (self.Rmaxc / self.rpc) ** 2)) - (self.Rmaxc / self.rpc) / sqrt(
                     1 + (self.Rmaxc / self.rpc) ** 2))},
 
             'Moore': {
                 'phi': lambda r, M: - self.G * M / self.rpc / log(1 + (self.Rmaxc / self.rpc) ** (3 - self.gammapc)) * (
-                            self.rpc / r * log(1 + (r / self.rpc) ** (3 - self.gammapc)) + beta(1 / (3 - self.gammapc),
-                                                                                                (2 - self.gammapc) / (
-                                                                                                            3 - self.gammapc)) * betainc(
-                        1 / (3 - self.gammapc), (2 - self.gammapc) / (3 - self.gammapc),
-                        1 / (1 + (r / self.rpc) ** (3 - self.gammapc)))),
+                        self.rpc / r * log(1 + (r / self.rpc) ** (3 - self.gammapc)) + beta(1 / (3 - self.gammapc),
+                                                                                            (2 - self.gammapc) / (
+                                                                                                    3 - self.gammapc)) * betainc(
+                    1 / (3 - self.gammapc), (2 - self.gammapc) / (3 - self.gammapc),
+                    1 / (1 + (r / self.rpc) ** (3 - self.gammapc)))),
                 'dPhi_dr': lambda r, M: self.G * M / r ** 2 * log(1 + (r / self.rpc) ** (3 - self.gammapc)) / log(
                     1 + (self.Rmaxc / self.rpc) ** (3 - self.gammapc))},
 
             'Truncated_Einasto': {'phi': lambda r, M: - self.G * M / self.rpc * (
-                        self.rpc / r * gammainc((3 - self.gammapc1) / self.gammapc,
-                                                (r / self.rpc) ** self.gammapc) + gamma(
-                    (2 - self.gammapc1) / self.gammapc) * gammaincc(2 / self.gammapc,
-                                                                    (r / self.rpc) ** self.gammapc) / gamma(
-                    3 / self.gammapc)),
+                    self.rpc / r * gammainc((3 - self.gammapc1) / self.gammapc,
+                                            (r / self.rpc) ** self.gammapc) + gamma(
+                (2 - self.gammapc1) / self.gammapc) * gammaincc(2 / self.gammapc,
+                                                                (r / self.rpc) ** self.gammapc) / gamma(
+                3 / self.gammapc)),
                                   'dPhi_dr': lambda r, M: self.G * M * gammainc((3 - self.gammapc1) / self.gammapc, (
-                                              r / self.rpc) ** self.gammapc) / r ** 2},
+                                          r / self.rpc) ** self.gammapc) / r ** 2},
 
             'Zhao': {'phi': lambda r, M: - self.G * M / self.rpc * (
-                        self.rpc / r * betainc((3 - self.gammapc2) / self.gammapc, (self.gammapc1 - 3) / self.gammapc, (
-                            r ** self.gammapc / (self.rpc ** self.gammapc + r ** self.gammapc))) + betainc(
-                    (self.gammapc1 - 2) / self.gammapc, (2 - self.gammapc2) / self.gammapc,
-                    (self.rpc ** self.gammapc / (self.rpc ** self.gammapc + r ** self.gammapc))) * beta(
-                    (self.gammap1 - 2) / self.gammap, (2 - self.gammap2) / self.gammap) / beta(
-                    (3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap)),
+                    self.rpc / r * betainc((3 - self.gammapc2) / self.gammapc, (self.gammapc1 - 3) / self.gammapc, (
+                    r ** self.gammapc / (self.rpc ** self.gammapc + r ** self.gammapc))) + betainc(
+                (self.gammapc1 - 2) / self.gammapc, (2 - self.gammapc2) / self.gammapc,
+                (self.rpc ** self.gammapc / (self.rpc ** self.gammapc + r ** self.gammapc))) * beta(
+                (self.gammap1 - 2) / self.gammap, (2 - self.gammap2) / self.gammap) / beta(
+                (3 - self.gammap2) / self.gammap, (self.gammap1 - 3) / self.gammap)),
                      'dPhi_dr': lambda r, M: self.G * M * r ** (1 - self.gammapc) / self.rpc ** (3 - self.gammapc)},
 
         }
@@ -710,9 +713,9 @@ class clusterBH:
         self.balance_dict = {
             'step': lambda t: numpy.heaviside(t - self.tcc, 1),
             'error_function': lambda t: 0.5 * (
-                        1 + erf(self.gamma4 * self.gamma3 * (t - self.gamma4 * self.tcc / self.gamma3) / self.tcc)),
+                    1 + erf(self.gamma4 * self.gamma3 * (t - self.gamma4 * self.tcc / self.gamma3) / self.tcc)),
             'hyperbolic': lambda t: 0.5 * (
-                        1 + tanh(self.gamma3 * self.gamma4 * (t - self.gamma4 * self.tcc / self.gamma3) / self.tcc)),
+                    1 + tanh(self.gamma3 * self.gamma4 * (t - self.gamma4 * self.tcc / self.gamma3) / self.tcc)),
             'exponential': lambda t: 1 - exp(- self.gamma3 * (t / self.tcc) ** self.gamma4)
         }
 
@@ -777,9 +780,9 @@ class clusterBH:
             self.b_BH = (self.alpha_BH + 2) / 3  # Auxiliary exponent.
             self.qul = self.mup / self.mlo  # Ratio of upper and lower mass in the BHMF.
             self.qul3, self.mlo3b, self.mup3b = self.qul ** 3, self.mlo ** (3 * self.b_BH), self.mup ** (
-                        3 * self.b_BH)  # Constants that are used multiple times. They are defined to avoid subsequent recomputations.
+                    3 * self.b_BH)  # Constants that are used multiple times. They are defined to avoid subsequent recomputations.
             if self.alpha_BH != -2: self.b_BH3 = 1. / (
-                        3 * self.b_BH)  # Exponent that participates in computations for alpha_BH different than -2, for no kicks.
+                    3 * self.b_BH)  # Exponent that participates in computations for alpha_BH different than -2, for no kicks.
 
             self.Mbh0 = self.f0 * self.M0  # [Msun] Prediction for the initial BH mass if SSP are not used and kicks are deactivated.
 
@@ -787,17 +790,17 @@ class clusterBH:
 
                 # Checks if the user has actually inserted a bad exponent for the BHMF that cannot be used.
                 k = (
-                                self.alpha_BH + 5) / -3  # Solve for k in equation: self.alpha_BH = -5 - 3k. These are values that give negative integers in the third input of the hypergeometric functions used.
+                            self.alpha_BH + 5) / -3  # Solve for k in equation: self.alpha_BH = -5 - 3k. These are values that give negative integers in the third input of the hypergeometric functions used.
 
                 if k.is_integer() and k >= 0:  # Checks whether k is a non-negative integer.
                     raise ValueError(
                         f"Exponent {self.alpha_BH} cannot be used with kicks and power-law BHMF since the hypergeometric functions used are ill defined. Choose other conditions.")
 
                 self.mb = (9 * pi / 2) ** (
-                            1. / 6) * self.sigmans * self.mns / self.vesc0  # [Msun] Correct the lowest mass unaffected by kicks. All masses below this threshold are affected by kicks.
+                        1. / 6) * self.sigmans * self.mns / self.vesc0  # [Msun] Correct the lowest mass unaffected by kicks. All masses below this threshold are affected by kicks.
                 self.qub, self.qlb = self.mup / self.mb, self.mlo / self.mb  # Mass ratios.
                 self.qub3, self.qlb3, self.qul3b = self.qub ** 3, self.qlb ** 3, self.qul ** (
-                            3 * self.b_BH)  # Ratios that appear multiple times in calculations.
+                        3 * self.b_BH)  # Ratios that appear multiple times in calculations.
                 self.h2 = hyp2f1(1, self.b_BH, self.b_BH + 1,
                                  -self.qlb3)  # Hypergeometric function. Appears several times.
                 self.mloh2 = self.mlo3b * (1 - self.h2)  # Constant prefactor which appears several times.
@@ -807,14 +810,14 @@ class clusterBH:
 
                     if self.alpha_BH == -2:  # This excludes only the alpha_BH = -2, but in principle other choices should be excluded, those that are problematic for hypergeometric functions (negative integers for b + 1).
                         return log((1 + qmb ** 3) / (
-                                    1 + self.qlb3))  # Integral of power-law mass function without the constant prefactor.
+                                1 + self.qlb3))  # Integral of power-law mass function without the constant prefactor.
 
                     else:
 
                         h1 = hyp2f1(1, self.b_BH, self.b_BH + 1,
                                     -qmb ** 3)  # Hypergeometric function used for the solution.
                         return mm ** (3 * self.b_BH) * (
-                                    1 - h1) - self.mloh2  # BH mass extracted by integrating the mass function, neglecting the constant prefactor.
+                                1 - h1) - self.mloh2  # BH mass extracted by integrating the mass function, neglecting the constant prefactor.
 
                 self.qmb = mmax_ / self.mb  # Auxiliary mass rations that can be used in the solution.
 
@@ -847,7 +850,7 @@ class clusterBH:
             self.mst_sev_BH = numpy.interp(self.t_bhcreation, self.t_mst,
                                            self.mst_sev)  # [Msun] Average stellar mass when all BHs are created. Effect of tides is neglected for simplicity.
             self.Mst_lost = (
-                                        self.m0 - self.mst_sev_BH) * N  # [Msun] Approximate value for the stellar mass lost to create all BHs.
+                                    self.m0 - self.mst_sev_BH) * N  # [Msun] Approximate value for the stellar mass lost to create all BHs.
 
         if self.Mbh0 < self.mlo: self.Mbh0, self.mbh0, self.Nbh0 = 1e-99, 1e-89, 0  # This condition checks whether BHs will be created. If not, clusterBH works only with stars.
 
@@ -860,9 +863,9 @@ class clusterBH:
         # If self.mst_sev_BH is used in trh0 and psi0, self.ntrh is shifted mildly.
         self.trh0 = 0.138 / (self.m0 * self.psi0 * log(self.gamma * self.N)) * sqrt(
             self.M0 * self.rh0 ** 3 / self.G) * (1 - 2 * self.omega0 ** 2 * self.rh0 ** 3 / (self.G * self.M0)) ** (
-                                3 / 2)  # [Myrs] We use m0 since at t=0 the mass distribution is the same everywhere. Valid for unsegregated clusters.
+                            3 / 2)  # [Myrs] We use m0 since at t=0 the mass distribution is the same everywhere. Valid for unsegregated clusters.
         self.tcc = self.ntrh * self.trh0 * (
-                    1 - self.Sseg) ** self.aseg  # [Myrs] Core collapse. Effectively it depends on metallicity, size and mass of the cluster. Changes with the level of segregation.
+                1 - self.Sseg) ** self.aseg  # [Myrs] Core collapse. Effectively it depends on metallicity, size and mass of the cluster. Changes with the level of segregation.
 
         # Check if the galactic model, cluster model, tidal model have changed. Based on the available choices in the dictionaries, change the values accordingly.
         if self.tidal:  # Valid check only if we have tides.
@@ -921,11 +924,11 @@ class clusterBH:
         """
         Computes the scaling factor between two different IMFs
         by normalizing and integrating them over the given mass ranges.
-        
+
         This function first determines normalization constants to ensure IMF continuity,
-        then integrates each IMF to compute their total mass, and finally calculates 
+        then integrates each IMF to compute their total mass, and finally calculates
         the fraction of mass in the high-mass end of the second IMF relative to the first.
-        
+
         Parameters
         ----------
         a_slopes1 : list of float
@@ -936,11 +939,11 @@ class clusterBH:
             The mass breakpoints corresponding to `a_slopes1`. [Msun]
         m_breaks2 : list of float
             The mass breakpoints corresponding to `a_slopes2`. [Msun]
-        
+
         Returns
         -------
         float
-            The ratio of the two IMFs' total mass, adjusted by the mass fraction 
+            The ratio of the two IMFs' total mass, adjusted by the mass fraction
             in the upper limit of the second IMF relative to the first. First IMF is the Kroupa.
         """
 
@@ -1054,7 +1057,7 @@ class clusterBH:
         """
         Depletes the BHMF by ejecting mass starting from the heaviest bins. This is subject to change once dark clusters are considered.
         Possible extension. Insert M_eject and also the type. Ejections are subtracted top-down while evaporation bottom-up.
-    
+
         Parameters:
          -----------
         M_eject : float
@@ -1068,7 +1071,7 @@ class clusterBH:
         --------
         Tuple of numpy.ndarray
            Updated arrays for the mass in each BH bin (M_BH) and the number of BHs (N_BH).
-    
+
         Notes:
         ------
         - The function starts ejecting mass from the heaviest bin and proceeds to lighter bins.
@@ -1111,12 +1114,12 @@ class clusterBH:
     def _find_mmax(self, Mbh):
         """
         Computes the maximum BH mass at each time instance for two cases of BHMFs. Either directly from the SSP tools, or from a simple power-law the user has specified.
-    
+
         Parameters:
         -----------
         Mbh : float
             The current total BH mass [Msun].
-    
+
         Returns:
         --------
         mmax : float
@@ -1147,9 +1150,9 @@ class clusterBH:
     # Average BH mass.
     def _mbh(self, Mbh):
         """
-        Calculates the updated average BH mass after ejecting a specified amount of BH mass. 
+        Calculates the updated average BH mass after ejecting a specified amount of BH mass.
         The computation is done based on which BHMF is used (either from the SSP or a simple power-law specified by the user).
-    
+
         Parameters:
         -----------
         Mbh : float
@@ -1159,7 +1162,7 @@ class clusterBH:
         --------
         float
           Average BH mass after ejections [Msun].
-    
+
         Notes:
         ------
         - The function first calculates the total mass to be ejected (`M_eject`) in [Msun].
@@ -1199,7 +1202,7 @@ class clusterBH:
         -----------
         M : float
            Total mass of the cluster [Msun].
-           
+
         RG : float
             Galactocentric distance [kpc].
 
@@ -1222,7 +1225,7 @@ class clusterBH:
 
         # Tidal radius.
         rt = (self.G * M / (nu * O2)) ** (
-                    1. / 3)  # [pc] The expression is valid for circular orbits in spherically symmetric potentials. The point mass approximation for the potential of the cluster is assumed.
+                1. / 3)  # [pc] The expression is valid for circular orbits in spherically symmetric potentials. The point mass approximation for the potential of the cluster is assumed.
 
         if not self.rt_approx and self.cluster_model != 'Point_mass':
             eq = lambda x: self.dPhic_dr_func(x,
@@ -1231,11 +1234,11 @@ class clusterBH:
 
         return rt
 
-    # Average mass of stars, due to stellar evolution.    
+    # Average mass of stars, due to stellar evolution.
     def _mst_sev(self):
         """
         Solves the differential equations for mst and Mst over the time interval,
-        considering mst = m0, Mst=M0 for t < self.tsev. 
+        considering mst = m0, Mst=M0 for t < self.tsev.
 
         Returns:
         -------
@@ -1264,7 +1267,7 @@ class clusterBH:
     def _b(self, fbh):
         """
         Calculates the exponent connecting velocity dispersion to mass.
-        
+
         Parameters
         ----------
         fbh : float
@@ -1277,7 +1280,7 @@ class clusterBH:
 
         """
         b = self.b if not self.sigma_exponent_run else self.b_min + (self.b_max - self.b_min) * (
-                    1 - fbh) ** self.gamma_exp  # No BHs, starts with equal velocity dispersion. As time flows by it approaches equipartition.
+                1 - fbh) ** self.gamma_exp  # No BHs, starts with equal velocity dispersion. As time flows by it approaches equipartition.
 
         return b
 
@@ -1290,13 +1293,13 @@ class clusterBH:
         -----------
         fbh : float
            A factor representing the BH fraction in the range [0, 1].
-    
+
         M : float
            Total mass of the cluster, in solar masses [Msun].
-    
+
         mbh : float
            Average BH mass in solar masses [Msun].
-    
+
         mst : float
            Average stellar mass [Msun].
 
@@ -1308,14 +1311,14 @@ class clusterBH:
         Notes:
         ------
         - The function assumed that the input values are well defined (for Mbh < mbh, both should be 0, same for Mst < mst).
-        - The number of particles `Np` is calculated using the `_N` function, which depends on the cluster's mass, 
+        - The number of particles `Np` is calculated using the `_N` function, which depends on the cluster's mass,
           the BH fraction, and the average masses of the populations.
         - The average stellar mass `mav` is derived by dividing the total cluster mass by the number of particles.
         - The exponent `gamma` is either a constant value `b` or it evolves based on the BH fraction (if `psi_exponent_run` is True),
           starting from equal velocity dispersion for different particles and evolving towards equipartition as time passes.
-        - The expression for `psi` includes a combination of parameters like `a0`, `a11`, `a12`, `b1`, `b2`, and others, 
+        - The expression for `psi` includes a combination of parameters like `a0`, `a11`, `a12`, `b1`, `b2`, and others,
           which relate the properties within the cluster's half-mass radius (`rh`) to the global properties of the cluster.
-        - For dark clusters (`dark_clusters` is True), a more complex expression for `psi` is used, 
+        - For dark clusters (`dark_clusters` is True), a more complex expression for `psi` is used,
           incorporating contributions from both the stellar and BH populations.
         - From t=0 until tcc, a better expression may be needed, one that accounts for initial stellar mass spetrum and how the two populations evolve up until tcc. This will allow to bypass the insertion of psi0 in trh0, before tcc is computed initially.
         """
@@ -1337,29 +1340,29 @@ class clusterBH:
         # Total expression. Can be used for instance if the stellar population depletes first.
         #   psi = (self.a0 * (mst / mav) ** self.b0) ** (gamma + 1) * (1 - self.a11 * fbh ** self.b1) + self.a11 * self.a12 ** (gamma + 1) * fbh ** self.b1 * (mbh / mav) ** (self.b2 * (gamma + 1)) # Complete expression if we include the contribution from stars as well.
         # The prefactors defined as a0, a11, a12 are in priciple variables. The proper model requires knowledge about the number densitites to avoid this issue. This is just a trial model.
-        # For fbh=0, in reality the result should be different from 0. If the remaining stellar mass spectrum is narrow, this approach suffices.  
+        # For fbh=0, in reality the result should be different from 0. If the remaining stellar mass spectrum is narrow, this approach suffices.
         return psi
 
-    # Relaxation as defined by Spitzer. Here we consider the effect of mass spectrum due to BHs. 
+    # Relaxation as defined by Spitzer. Here we consider the effect of mass spectrum due to BHs.
     def _trh(self, M, rh, fbh, mbh, mst):
         """
-        Calculates the relaxation timescale (`trh`) for a cluster, taking into account mass, radius, 
+        Calculates the relaxation timescale (`trh`) for a cluster, taking into account mass, radius,
         BH fraction and time evolution.
 
         Parameters:
         -----------
         M : float
           Total mass of the cluster [Msun].
-    
+
         rh : float
            Half-mass radius of the cluster [pc].
-    
+
         fbh : float
            The BH fraction in the range [0, 1].
-    
+
         mbh : float
            Average BH mass [Msun].
-    
+
         mst : float
           Average stellar mass [Msun].
 
@@ -1375,7 +1378,7 @@ class clusterBH:
         - The average mass within `rh` is computed using a power-law fit based on the total mass and the number of particles.
         - The relaxation timescale is calculated using a formula that depends on the total mass `M`, the half-mass radius `rh`, the average mass `mav`, particle number `Np`
           and the gravitational constant `G`. The timescale is further modified by the cluster's `psi` value, which depends on the BH fraction.
-        - If the cluster undergoes rigid rotation (`self.rotation` is True), the relaxation timescale is adjusted to account for the effect of rotation, 
+        - If the cluster undergoes rigid rotation (`self.rotation` is True), the relaxation timescale is adjusted to account for the effect of rotation,
           using a simplified model. The expression by King is used.
         """
 
@@ -1397,7 +1400,7 @@ class clusterBH:
 
         return trh
 
-    # Relaxation for evaporation depending on the assumptions. 
+    # Relaxation for evaporation depending on the assumptions.
     def _tev(self, M, rh, fbh, mbh, mst):
         """
         Calculates the evaporation timescale (`tev`) for a cluster, taking into account mass and radius.
@@ -1406,16 +1409,16 @@ class clusterBH:
         -----------
         M : float
           Total mass of the cluster [Msun].
-    
+
         rh : float
            Half-mass radius of the cluster [pc].
-    
+
         fbh : float
            The BH fraction in the range [0, 1].
-    
+
         mbh : float
            Average BH mass [Msun].
-    
+
         mst : float
           Average stellar mass [Msun].
 
@@ -1430,8 +1433,8 @@ class clusterBH:
         - The number of particles `Np` is computed using the `_N` function, which accounts for both stars and BHs in the cluster.
         - The average mass evaporated is estimated from the average mass of each population.
         - The relaxation timescale is calculated using a formula that depends on the total mass `M`, the half-mass radius `rh`, the average mass `mav`, particle number `Np`
-          and the gravitational constant `G`. 
-        - If the cluster undergoes rigid rotation (`self.rotation` is True), the relaxation timescale is adjusted to account for the effect of rotation, 
+          and the gravitational constant `G`.
+        - If the cluster undergoes rigid rotation (`self.rotation` is True), the relaxation timescale is adjusted to account for the effect of rotation,
           using a simplified model assuming constant rotation.
         """
 
@@ -1444,7 +1447,7 @@ class clusterBH:
         # A similar expression should be included for the mass and number of particles evaporated.
         # Relaxation for evaporation.
         tev = 0.138 * sqrt(M * rh ** 3 / self.G) / (mev * log(self.gamma * Np))  # [Myrs]
-        # If this timescale is used for evaporation. It may require corrections (ψ) for the case of dark clusters, it is included through mev. 
+        # If this timescale is used for evaporation. It may require corrections (ψ) for the case of dark clusters, it is included through mev.
 
         #   if self.rotation: # Effect of rigid rotation.
         #       tev *= (1 - 2 * self.omega0 ** 2 * rh ** 3 / (self.G * M)) ** (3 / 2) # [Myrs] Assume constant rotation for now.
@@ -1454,14 +1457,14 @@ class clusterBH:
     # Crossing time within the half-mass radius in Myrs.
     def _tcr(self, M, rh, k=1):
         """
-        Calculates the crossing timescale (`tcr`) for a cluster, which is related to the time it takes 
+        Calculates the crossing timescale (`tcr`) for a cluster, which is related to the time it takes
         for particles to cross the half-mass radius of the cluster.
 
         Parameters:
         -----------
         M : float
            Total mass of the cluster [Msun].
-    
+
         rh : float
            Half-mass radius of the cluster [pc].
 
@@ -1479,14 +1482,14 @@ class clusterBH:
         """
 
         tcr = k * sqrt(rh ** 3 / (
-                    self.G * M))  # [Myrs] With rotation, the numerical values of rh, M change and this impacts crossing time indirectly.
+                self.G * M))  # [Myrs] With rotation, the numerical values of rh, M change and this impacts crossing time indirectly.
 
         return tcr
 
     def _tdf(self, M, RG, L, rh):
         """
         Calculates the time scale for dynamical friction.
-        
+
         Parameters
         ----------
         M : float
@@ -1495,7 +1498,7 @@ class clusterBH:
             Galactocentric distance [kpc].
         L : float
             Orbital angular momentum of cluster [pc^2 / Myrs].
-        
+
         rh : float
              Half-mass radius of the cluster [pc].
 
@@ -1516,7 +1519,7 @@ class clusterBH:
 
         # Time scale for dynamical friction. Works only for Maxwellian distribution. The anisotropic model has the same dependence on X, only its value changes.
         tdf = L * vc2 / (
-                    4 * pi * 1e3 * RG * G ** 2 * M * rhoG * log_Coulomb * (erf(X) - 2 * X / sqrt(pi) * exp(- X ** 2)))
+                4 * pi * 1e3 * RG * G ** 2 * M * rhoG * log_Coulomb * (erf(X) - 2 * X / sqrt(pi) * exp(- X ** 2)))
         # Future extension: Define g(X) for two cases, for isotropic and anisotropic velocity distribution (isotropic model is erf(X) - 2 * X / sqrt(pi) * exp(- X ** 2)), and include it in the time scale. Then for anisotropic models, call the respective X from a different dictionary depending on the anisotropic model, for instance constant, power-law (or combine these two).
         # Most configurations that are currently available have analytic forms for constant anisotropy. Power-law has some analytic forms, only if the anisotropy length scale is equal to the configuration length scale which is not always the case.
         return tdf
@@ -1524,7 +1527,7 @@ class clusterBH:
     def _tdis(self, M):
         """
         Computes the disruption time scale for interactions with GMC.
-        
+
         Parameters
         ----------
         M : float
@@ -1558,7 +1561,7 @@ class clusterBH:
         -------
         float
             Time scale for disk shock [Myrs].
-            
+
         """
 
         Vc = 1.023 * self.Vc_func(RG)  # [pc / Myrs] Velocity profile.
@@ -1580,7 +1583,7 @@ class clusterBH:
         -----------
         M : float
            Total mass of the cluster [Msun].
-    
+
         rh : float
            Half-mass radius of the cluster [pc].
 
@@ -1591,10 +1594,10 @@ class clusterBH:
 
         Notes:
         ------
-        - The density `rhoh` is computed as the mass enclosed within the half-mass radius (`rh`), using the formula: 
+        - The density `rhoh` is computed as the mass enclosed within the half-mass radius (`rh`), using the formula:
           `rhoh = 3 * M / (8 * pi * rh ** 3)`. The density is in units of [Msun / pc^3].
-        - The escape velocity `vesc` is then calculated using the relation: 
-          `vesc = 50 * (M / 1e5) ** (1/3) * (rhoh / 1e5) ** (1/6)`, where the units for `vesc` are in [km/s]. 
+        - The escape velocity `vesc` is then calculated using the relation:
+          `vesc = 50 * (M / 1e5) ** (1/3) * (rhoh / 1e5) ** (1/6)`, where the units for `vesc` are in [km/s].
           This formula expresses the central escape velocity based on the mass and the density of the cluster.
         - The escape velocity is further augmented by multiplying it by the factor `fc`, which adjusts the value according to the specific King model used for the cluster.
         - Time dependence if `fc` is neglected, however it should increase over time. This is introduced, currently as a trial, in a different function.
@@ -1605,7 +1608,7 @@ class clusterBH:
 
         # Escape velocity.
         vesc = 50 * (M / 1e5) ** (1. / 3) * (rhoh / 1e5) ** (
-                    1. / 6)  # [km/s] Central escape velocity as a function of mass and density. If it is needed in [pc / Myrs], multiply with 1.023.
+                1. / 6)  # [km/s] Central escape velocity as a function of mass and density. If it is needed in [pc / Myrs], multiply with 1.023.
         vesc *= self.fc  # Augment the value for different King models. This in principle evolves with time but the constant value is an approximation.
 
         return vesc
@@ -1615,38 +1618,38 @@ class clusterBH:
 
         """
         Estimates the change in parameter fc, and effectively on King's parameter W0, and its impact on the central escape velocity.
-        
+
         Parameters:
         -----------
         M : float
            Total mass of the cluster [Msun].
-    
+
         rh : float
            Half-mass radius [pc]
-        
+
         Returns:
         --------
         float
            Multiplication factor for the central escape velocity. In principle, this parameter scales with sqrt(W0).
-        
+
         """
 
         fc = (self.M0 / M) ** self.d1 * (
-                    rh / self.rh0) ** self.d2  # Such parameter should increase because the central region becomes denser over time. Will be studied further in the future.
+                rh / self.rh0) ** self.d2  # Such parameter should increase because the central region becomes denser over time. Will be studied further in the future.
 
         return fc
 
-    # Construct the differential equations to be solved. 
+    # Construct the differential equations to be solved.
     def _odes(self, t, y):
         """
-        Computes the time derivatives of the system's state variables, which describe the evolution of a star cluster 
+        Computes the time derivatives of the system's state variables, which describe the evolution of a star cluster
         under various physical processes including stellar evolution, tidal effects, ejections, mass segregation, and core collapse.
 
         Parameters:
         -----------
         t : float
            Time elapsed since the beginning of the cluster's evolution, in [Myrs].
-    
+
         y : array
            A sequence representing the state variables:
            - y[0] : float : Stellar mass, `Mst` [Msun].
@@ -1674,7 +1677,7 @@ class clusterBH:
         1. **Core Collapse**:
          - After core collapse time (`tcc`), the parameter for mass segregation, `Mval`, transitions to a constant value. In the future, where a smoothing transition will be inserted, this contribution will not be needed.
         2. **Stellar Evolution**:
-         - Stellar mass loss due to stellar evolution is modeled using mass-loss rate (`nu`). 
+         - Stellar mass loss due to stellar evolution is modeled using mass-loss rate (`nu`).
          - Mass segregation is evolved if the option is selected.
          - The average stellar mass also evolves due to sev. It accounts the proper solution, if a running ν is selected.
          - RV filling clusters can be described as well. An induced mass loss rate is available.
@@ -1700,7 +1703,7 @@ class clusterBH:
         mst = y[4]  # [Msun] Average stellar mass.
         RG = y[5]  # [kpc] Galactocentric distance.
 
-        # Time instances are repeated multiple times. It is faster to assign them in local variables.        
+        # Time instances are repeated multiple times. It is faster to assign them in local variables.
         tcc = self.tcc  # [Myrs] Core collapse.
         tsev = self.tsev  # [Myrs] Stellar evolution.
         #   tbh = self.t_bhcreation # [Myrs] Time instance when BHs have been created.
@@ -1747,14 +1750,14 @@ class clusterBH:
                             mst) if self.two_relaxations else trh  # [Myrs] Evaporation time scale. Check whether it is different from relaxation within rh.
 
             cg_factor = 4 * cg / r * (
-                        rh / rt) ** 3  # Factor depends on rh / rt so it becomes important only towards the end of the life of a cluster.
+                    rh / rt) ** 3  # Factor depends on rh / rt so it becomes important only towards the end of the life of a cluster.
             denom = 1 - 2 * cg_factor  # Denominator that appears multiple times.
             if cg > 0: self.rhrt_crit = (r / (8 * cg)) ** (1 / 3)  # The critical ratio decreases if cg > 0.
 
             xi = max(self.xi_function(rh, rt),
                      self.fmin)  # Tides. The max option allows the user to insert a constant evaporation if the tidal function is weak for small rh/rt.
             xi *= (self.M0 / 2e5) ** (
-                        1 - self.ym)  # Correction term to xi. To be used for dissolving clusters. Default to ym=1.
+                    1 - self.ym)  # Correction term to xi. To be used for dissolving clusters. Default to ym=1.
 
             if self.finite_escape_time:  # Check if evaporation is energy dependent.
                 Omega = (1.023 * self.Vc_func(RG) / (1e3 * RG))  # [1 / Myrs] Angular frequency.
@@ -1763,7 +1766,7 @@ class clusterBH:
 
                 P = self.p * (tev / tcr) ** (1 - x)  # Check if we have finite escape time from the Lagrange points.
                 xi *= P / (1 - lambda3 / lambda1) ** (0.5 * (
-                            1 - x))  # Perhaps the denominator needs a factor of 3 / 4 so that the contribution is 1 for point mass?
+                        1 - x))  # Perhaps the denominator needs a factor of 3 / 4 so that the contribution is 1 for point mass?
 
             #     if self.rotation: # If the cluster rotates, the evaporation rate changes. A similar change to relaxation is used. Trial stage.
             #         xi *= (1 - 2 * self.omega0 ** 2 * rh ** 3 / (G * M)) ** self.gamma1 # Parameter gamma1 should be positive, since rotation makes it more difficult to reach the tail of the Maxwellian distribution.
@@ -1771,18 +1774,18 @@ class clusterBH:
             # Effect of evaporating stars on the half mass radius. Keep only evaporation.
             if self.escapers:  # It is connected to the model for the potential of the cluster.
                 index = numpy.abs(self.Phic_function(rt, M)) / (
-                            G * M)  # [pc^2 / Myrs^2 ] Get the value from the dictionary. It changes with respect to the potential assumed for the cluster.
+                        G * M)  # [pc^2 / Myrs^2 ] Get the value from the dictionary. It changes with respect to the potential assumed for the cluster.
                 kin = self.kin if not self.varying_kin else 2 * (tcr / tev) ** (
-                            1 - x)  # Kinetic term for evaporating stars. Can be either a constant value or effectively a function of the number of particles.
+                        1 - x)  # Kinetic term for evaporating stars. Can be either a constant value or effectively a function of the number of particles.
 
             if Mst > mst_inf:  # Tidal mass loss appears only when stars are present.
                 mst_dotev += self.chi_ev * (1 - self.m_breaks[0] / mst) * (
-                            1 - mst / mst_inf) * xi * mst / tev  # [Msun / Myrs] Rate of change of average stellar mass due to tides. Can be avoid if the SSP tools were used and mass subtraction was performed bottom-up, however solely for tidal mass loss.
+                        1 - mst / mst_inf) * xi * mst / tev  # [Msun / Myrs] Rate of change of average stellar mass due to tides. Can be avoid if the SSP tools were used and mass subtraction was performed bottom-up, however solely for tidal mass loss.
                 Mst_dotev -= xi * Mst / tev  # [Msun / Myrs] Mass loss rate of stars due to tides (and central ejections).
                 rh_dot += 2 * Mst_dotev / M * rh * (
-                            1 + cg_factor / 2) / denom  # [pc / Myrs] Impact of tidal mass loss to the size of the cluster.
+                        1 + cg_factor / 2) / denom  # [pc / Myrs] Impact of tidal mass loss to the size of the cluster.
                 rh_dot += 6 * xi / r / tev * (
-                            1 - kin) * rh ** 2 * index * Mst / M / denom  # [pc / Myrs] If escapers carry negative energy as they leave, the half mass radius is expected to increase since it is similar to emitting positive energy. The effect is proportional to tides.
+                        1 - kin) * rh ** 2 * index * Mst / M / denom  # [pc / Myrs] If escapers carry negative energy as they leave, the half mass radius is expected to increase since it is similar to emitting positive energy. The effect is proportional to tides.
             """   
             # If the tidal field was important, an additional mass-loss mechanism would be needed. Trial stage.
             if self.dark_clusters and Mbh > mbh and t >= tbh: # Appears when BHs have been created.
@@ -1794,7 +1797,7 @@ class clusterBH:
               # Now if BH evaporation is important and escapers is activated, it should be included here.
                rh_dot += 6 * xi_bh / r / tev * (1 - kin) * rh ** 2 * index * fbh / (1 - 2 * cg_factor)   # [pc / Myrs] The kinetic term is the same here, it does not distinguish particle types.
              """
-        # Unbalanced phase. 
+        # Unbalanced phase.
 
         if self.mass_segregation:
             Mval_dot += Mval * (self.Mvalf - Mval) / trh * numpy.heaviside(tcc - t,
@@ -1803,7 +1806,7 @@ class clusterBH:
         # Balanced Phase.
 
         rh_dot += zeta * rh / trh * F * (
-                    1 + index_cg * cg_factor) / denom  # [pc / Myrs] Instead of the if statement, simply multiplying with F should work.
+                1 + index_cg * cg_factor) / denom  # [pc / Myrs] Instead of the if statement, simply multiplying with F should work.
 
         S = max(self._psi(fbh, M, mbh, mst) - psi_st,
                 self.Scrit)  # Parameter similar to Spitzer's parameter used for equipartition. A threshold is inserted, however it is 0 by default.
@@ -1818,14 +1821,14 @@ class clusterBH:
 
             if fbh < self.fbh_crit and self.running_bh_ejection_rate_1:  # Condition for decreasing the ejection rate of BHs due to E / M φ0. A condition for mbh_crit may be needed.
                 beta_bh *= (fbh / self.fbh_crit) ** self.b4 * (
-                            mbh / m / self.qbh_crit) ** self.b5  # A dependence on the average mass ratio mbh / m (or metallicity) may be needed.
+                        mbh / m / self.qbh_crit) ** self.b5  # A dependence on the average mass ratio mbh / m (or metallicity) may be needed.
 
             if self.running_bh_ejection_rate_2:  # Decrease the ejection rate for clusters that are close to reaching equipartition.
                 beta_bh *= beta_f  # Change the ejection rate with respect to S.
 
-            Mbh_dot -= beta_bh * zeta * M / trh  # [Msun / Myrs] Ejection of BHs each relaxation. 
+            Mbh_dot -= beta_bh * zeta * M / trh  # [Msun / Myrs] Ejection of BHs each relaxation.
             rh_dot += 2 * Mbh_dot / M * rh * (
-                        1 + cg_factor / 2) / denom  # [pc / Myrs] Contraction since BHs are removed.
+                    1 + cg_factor / 2) / denom  # [pc / Myrs] Contraction since BHs are removed.
 
         Mst_dotgmc, mst_dotgmc = 0, 0  # [Msun / Myrs] Mass loss rates from interactions with Giant Mollecular Clusters. Introduces additional mass-loss.
         Mst_dotdisk, mst_dotdisk = 0, 0  # [Msun / Myrs] Mass loss rates from disk shocks.
@@ -1837,7 +1840,7 @@ class clusterBH:
 
             if self.running_bh_ejection_rate_2:  # Check if the ejection rate varies with the BH population.
                 alpha_c += (self.alpha_cf * F - alpha_c) * (
-                            1 - beta_f)  # This expression states that with many BHs, the ejection rate of stars should be small, and when the BHs vanish it increases. A similar rate of change as for the BH ejection rate is used.
+                        1 - beta_f)  # This expression states that with many BHs, the ejection rate of stars should be small, and when the BHs vanish it increases. A similar rate of change as for the BH ejection rate is used.
 
             if self.running_stellar_ejection_rate:  # Check if the ejection rate decreases for increasing tides.
                 alpha_c *= (1 - 5 * xi / (3 * zeta))  # Alter alpha_c based on tides as introduced in EMACSS.
@@ -1846,7 +1849,7 @@ class clusterBH:
             mst_dotej -= alpha_c * zeta * self.chi_ej * (mst - self.m_breaks[
                 0]) / trh  # [Msun / Myrs] Mass loss rate should be top_down. This is a trial method for decreasing the average stellar mass.
             rh_dot += 2 * Mst_dotej / M * rh * (
-                        1 + cg_factor / 2) / denom  # [pc / Myrs] Impact of ejections to the size of the cluster.
+                    1 + cg_factor / 2) / denom  # [pc / Myrs] Impact of ejections to the size of the cluster.
             """
             if self.GMC: # Check if interactions with molecular clusters have been activated. Trial stage. BHs are not affected for now.
                 tdis = self._tdis(M) # [Myrs] Applied to stellar mass only. It is inserted continuously.
@@ -1854,7 +1857,7 @@ class clusterBH:
                 Mst_dotgmc -= Mst / tdis # [Msun / Myrs]
                 rh_dot += 2 * Mst_dotgmc / M * rh # [pc / Myrs]
             # Similar extension for tidal shocks can be inserted.
-            
+
             if self.disk: # Trial stage. BHs are not affected.
                 tshock = self._tshock(M, rh, RG) # [Myrs] Time scale for shock
                 Mst_dotdisk -= self.xi_shock * Mst / tshock # [Msun / Myrs] Trial model assumes a constant prefactor.
@@ -1869,18 +1872,18 @@ class clusterBH:
             nu = numpy.max(self.nu_function(self.Z, t),
                            0)  # Rate of stellar mass loss due to stellar winds. Taken from a dictionary, ensures that it is non-negative.
             mst_dotsev -= nu * (
-                        mst - mst * self.M0 / Mst * self.nu_factor) / t  # [Msun/Myrs] When we consider stellar evolution, the average stellar mass changes through this differential equation. It is selected so that the case of a varying nu is properly described.
+                    mst - mst * self.M0 / Mst * self.nu_factor) / t  # [Msun/Myrs] When we consider stellar evolution, the average stellar mass changes through this differential equation. It is selected so that the case of a varying nu is properly described.
             Mst_dotsev -= nu * (
-                        Mst - self.M0 * self.nu_factor) / t  # [Msun / Myrs] Stars lose mass due to stellar evolution. If it is the sole mechanism for mass loss, it implies that N is constant since mst decreases with the same rate.
+                    Mst - self.M0 * self.nu_factor) / t  # [Msun / Myrs] Stars lose mass due to stellar evolution. If it is the sole mechanism for mass loss, it implies that N is constant since mst decreases with the same rate.
             rh_dot -= (Mval * (1 + index_cg * cg_factor) - 2 * (
-                        1 + cg_factor / 2)) / denom * Mst_dotsev / M * rh  # [pc / Myrs] The cluster expands for this reason. It is because a uniform distribution is assumed initially.
+                    1 + cg_factor / 2)) / denom * Mst_dotsev / M * rh  # [pc / Myrs] The cluster expands for this reason. It is because a uniform distribution is assumed initially.
 
             if self.induced_loss and self.tidal and rh / rt > self.Rht_crit:  # Check if the cluster is RV filling. Not important at large time scales. Trial stage.
                 t_delay = self.n_delay * self._tcr(M, rt, k=1)  # [Myrs] Compute the crossing time at the tidal radius.
                 f_ind = self.find_max * (1 - exp(- t / t_delay))  # Function for induced mass loss.
                 Mst_dotsev_ind += f_ind * Mst_dotsev  # [Msun / Myrs] Add this contribution to the stellar mass loss.
                 rh_dot += 2 * Mst_dotsev_ind / M * rh * (
-                            1 + cg_factor / 2) / denom  # [pc / Myrs] If it is, the half-mass radius decreases due to induced mass loss. It is derived from conservation of energy.
+                        1 + cg_factor / 2) / denom  # [pc / Myrs] If it is, the half-mass radius decreases due to induced mass loss. It is derived from conservation of energy.
 
         Mst_dot += Mst_dotev + Mst_dotsev + Mst_dotej + Mst_dotsev_ind + Mst_dotgmc + Mst_dotdisk  # [Msun / Myrs] Correct the total stellar mass loss rate. This way, resummation in rhdot is avoided.
         mst_dot += mst_dotev + mst_dotsev + mst_dotej + mst_dotgmc + mst_dotdisk  # [Msun / Myrs] Correct the average stellar mass loss rate by considering all contributions.
@@ -1895,7 +1898,7 @@ class clusterBH:
             RG_dot -= 2 / (4 - self.rt_index(RG)) * RG / tdf * numpy.heaviside(RG - 0.01,
                                                                                0)  # [kpc / Myrs] Galactocentric distance cannot be negative. Truncate to the tidal radius for small values.
             rh_dot += rh * RG_dot / RG * cg_factor / denom * (- rt_index + (rt_index - 3) / rt_index * (
-                        rt_index - 2))  # [pc / Myrs] Should be rt_index - 2 + RG MG''(RG) / MG'(RG), MG taken from the galactic profile. To be included in the future for the rest potentials. Now works only for SIS.
+                    rt_index - 2))  # [pc / Myrs] Should be rt_index - 2 + RG MG''(RG) / MG'(RG), MG taken from the galactic profile. To be included in the future for the rest potentials. Now works only for SIS.
 
         derivs = numpy.array([Mst_dot, Mbh_dot, rh_dot, Mval_dot, mst_dot, RG_dot],
                              dtype=object)  # Save all derivatives in a sequence.
@@ -1922,10 +1925,10 @@ class clusterBH:
         Output:
         ------
         - Cluster parameters are computed and can be saved in a text file if selected.
-        
+
         Notes:
         ------
-        - Initial conditions for stellar mass, BH mass, half-mass radius, segregation parameter, ratio `rh/rv` and average stellar mass are set to 
+        - Initial conditions for stellar mass, BH mass, half-mass radius, segregation parameter, ratio `rh/rv` and average stellar mass are set to
           `self.M0`, `self.Mbh0`, `self.rh0`, `self.Mval0`, `self.r0`, `self.m0` respectively.
         - Results are stored as attributes of the object for further analysis.
         """
@@ -1996,7 +1999,7 @@ class clusterBH:
         self.Np = self.M * (self.fbh / self.mbh + (1 - self.fbh) / self.mst)  # Number of components.
         self.mav = self.M / self.Np  # [Msun] Average mass of cluster over time, includes BHs. No significant change is expected given that Nbh <= O(1e3), apart from the beginning where the difference is a few percent.
         self.mev = self.mst if not self.dark_clusters else self.mst + (self.mbh * self.psi - self.mst) * 2 / (
-                    1 + exp(self.k_bh * self.c_bh * (1 - self.fbh)))  # [Msun] Average mass evaporated.
+                1 + exp(self.k_bh * self.c_bh * (1 - self.fbh)))  # [Msun] Average mass evaporated.
         self.Nbh = self.Mbh / self.mbh  # Number of BHs.
         self.E = - self.r * self.G * self.M ** 2 / (4 * self.rh)  # [pc^2 Msun / Myrs^2] External energy of the cluster
 
@@ -2024,7 +2027,7 @@ class clusterBH:
         self.vesc = self._vesc(self.M, self.rh)  # [km/s] Escape velocity.
         self.b_run = self._b(self.fbh)  # Exponent connecting velocity dispersion to mass.
         self.S = self.a11 * self.a12 ** (1 + self.b_run) * self.fbh ** self.b1 * (self.mbh / self.mav) ** (
-                    (1 + self.b_run) * self.b2)  # Parameter indicative of equipartition.
+                (1 + self.b_run) * self.b2)  # Parameter indicative of equipartition.
         self.phi_0 = - (1.023 * self.vesc) ** 2 / 2  # [pc^2/Myr^2] Central potential. Needs fc to be correct.
         self.fcrun = self._fc(self.M, self.rh)  # Parameter to estimate how the escape velocity evolves.
         self.beta_run = self.beta * self.beta_function(self.S)  # Running beta factor.
@@ -2037,9 +2040,12 @@ class clusterBH:
             self.Mst_interp = lambda t: sol.sol(t * 1e3)[0]  # Mst(t) [Msun (Gyr)]
             self.Mbh_interp = lambda t: sol.sol(t * 1e3)[1]  # Mbh(t) [Msun (Gyr)]
             self.rh_interp = lambda t: sol.sol(t * 1e3)[2]  # rh(t) [pc (Gyr)]
+            self.mst_interp = lambda t: sol.sol(t * 1e3)[4]  # mst(t) [pc (Gyr)]
             self.M_interp = lambda t: self.Mst_interp(t) + self.Mbh_interp(t)
+            N_interp = scipy.interpolate.interp1d(self.t, self.Mst / self.mst + self.Nbh)
+            self.m_interp = lambda t: self.M_interp(t) / N_interp(t)
 
-        # Checks if the results need to be saved. The default option is to save the solutions of the differential equations as well as the tidal radius and average masses of the two components. Additional inclusions are possible.
+            # Checks if the results need to be saved. The default option is to save the solutions of the differential equations as well as the tidal radius and average masses of the two components. Additional inclusions are possible.
         if self.output:
             # Defines table header.
             table_header = "# t[Gyrs] Mbh[msun] Mst[msun] rh[pc] rt[pc] mbh[msun] mst[msun] mbh_max[msun]"
@@ -2080,10 +2086,10 @@ Orbit:
 
  RG, RGdot = y[6], y[7] # [kpc], [kpc/Myrs] Motion of the cluster.
  L = y[9] # [pc^2/Myrs] Angular momentum per unit mass.
- 
+
  dRG_dt, dRGdot_dt, dtheta_dt = 0, 0, 0 # Derivatives for the motion of the cluster.
  dL_dt = 0 # [pc^2/Myrs^2] Rate of change of angular momentum per unit mass.
- 
+
  Mg = self.Mg # [Msun] Mass of galaxy changes when the orbit changes.
  dPhi_dr = self.dPhi_dr_func(RG, Mg) # [pc / Myrs^2] Derivative of the potential. It takes parsec as input.
 
@@ -2110,9 +2116,9 @@ Orbit:
          L = 1e3 * RG * self.Vc_func(RG) # [pc^2 / Myrs] Angular momentum, should change because we change the distance.
          # Equation for distance is extracted from the variation of the angular momentum. 
          dRG_dt -= 2 / (4 - self.rt_index(RG)) * RG / tdf * numpy.heaviside(RG - 0.01 , 0) # [kpc / Myrs] Prefactor appears to be connected to the tidal radius. It is due to the scaling of the velocity profile with the radius.
-              
+
  derivs = numpy.array([Mst_dot, Mbh_dot, rh_dot, Mval_dot, r_dot, mst_dot, dRG_dt, dRGdot_dt, dtheta_dt, dL_dt], dtype=object) # Save all derivatives in a sequence.
-   
+
 This describes how a globular cluster moves, by assuming the center of its mass satisfies Newton's equation. The tidal mass loss must be changed however, because rt and tev should be different. The equations are for RG, RGdot and theta (angle in the plane of motion). 
 In addition, tidal spiralling should change. Simplest approach is to introduce an equation for dL/dt.
 
@@ -2122,7 +2128,7 @@ In the function _evolve, add:
  dRdt = [self.Vcl0] # [pc/Myrs] Initial velocity.
  theta = [self.theta0] # [rad] Initial angle.
  L = [self.L] # [pc^2 / Myrs] Initial angular momentum.
- 
+
  y = [Mst[0], Mbh[0], rh[0], Mval[0], r[0], mst[0], R[0], dRdt[0], theta[0], L[0]] # Combine them in a multivariable.
  .
  .
@@ -2132,11 +2138,11 @@ In the function _evolve, add:
  self.vcl_r = 1e3 * sol.y[7] / 1.023 # [km/s] Radial velocity of the cluster.
  self.theta_cl = sol.y[8] # [rad] Angle of orbit.
  self.L_cl = sol.y[9] # [pc^2 / Myrs] Angular momentum of the cluster.
- 
+
  self.vcl_theta = self.L_cl / 1.023 / (self.rcl * 1e3) # [km/s] Angular velocity of the cluster.
  self.vcl = sqrt(self.vcl_r ** 2 + self.vcl_theta ** 2) # [km/s] Total velocity of the cluster.
- 
- 
+
+
 Finally in _init_ add,
 
  self.e = 0 # Eccentricity of orbit. If none, the user inserts it otherwise the pericenter and apocenter distances are expected as input.
@@ -2149,23 +2155,23 @@ before kwargs, while after add
  if self.eccentric and self.e > 0:
      self.Eorb = self.galactic_model_dict[self.galactic_model]['E'](0) # [pc^2/Myrs^2] Orbital energy of the cluster.
      self.L = self.galactic_model_dict[self.galactic_model]['L'](0) # [pc^2/Myrs] Orbital angular momentum.
-    
+
     # Eccentric orbits can be studied by simply inserting an initial distance. The respective velocity is computed automatically. If not, the simulation starts at the apocenter.
     # The angle is not important because of the spherical symmetry.
      if not hasattr(self, 'rcl0'):
          self.rcl0 = self.rapo # [kpc] Start from the apocenter if it is not specified.
-       
+
      else: # If initial position is specified, compute the velocity.
          if self.rperi > self.rcl0 or self.rapo < self.rcl0:
              raise ValueError(f"Invalid initial position {self.rcl0} kpc. For semi major axis {self.rg} kpc, the initial position is expected between the pericenter {self.rperi} kpc and the apocenter {self.rapo} kpc.")
          self.Vcl0 = 1e-3 * sqrt(abs(2 * (self.Eorb - self.phi_func(self.rcl0, self.Mg)) - self.L ** 2 / (self.rcl0 * 1e3) ** 2)) # [kpc / Myrs]. Initial radial velocity of the cluster. This is because it is dR / dt.
-       
+
          # Check if initial angle is between pi and 2pi, and adjust the sign of the radial velocity.
          if self.inwards:
              self.Vcl0 *= -1 # Reverse velocity.
 
  else:
-     
+
     self.rcl0 = self.rg # [kpc]  
 
 In the dictionary for galactic models, add orbital energy and angular momentum.

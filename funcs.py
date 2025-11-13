@@ -1,33 +1,44 @@
 import sys
 
 import numpy as np
+import time
 from numpy.random import random
 from scipy.optimize import bisect
 
 
 class MergerOutcome:
     InClusterInspiral = "incluster_inspiral"
-    GWCapture = "gw_capture"
+    GWCaptureBS = "gw_capture_bs"
+    GWCaptureBB = "gw_capture_bb"
     Ejected = "ejected"
+    DirectInspiral = "direct_inspiral"
+
+    @staticmethod
+    def get_outcomes():
+        return [MergerOutcome.InClusterInspiral,
+                MergerOutcome.GWCaptureBS,
+                MergerOutcome.GWCaptureBB,
+                MergerOutcome.Ejected,
+                MergerOutcome.DirectInspiral]
 
 
 def get_sync_time(cbh, fbh0, Mcl_i, M3ej, t):
-    if fbh0 * Mcl_i - M3ej >= cbh.Mbh_interp(t / 1e6):
+    if fbh0 * Mcl_i - M3ej >= cbh.Mbh_interp(t / 1e9):
         return t
     elif fbh0 * Mcl_i - M3ej >= cbh.Mbh0:
         return t
-    elif fbh0 * Mcl_i - M3ej <= cbh.Mbh_interp(cbh.tend):
+    elif fbh0 * Mcl_i - M3ej <= cbh.Mbh_interp(cbh.tend / 1e3):
         return cbh.tend * 1e6
     else:
-        t_bisect = bisect(lambda t_param: cbh.Mbh_interp(t_param / 1e6) - (fbh0 * Mcl_i - M3ej),
+        t_bisect = bisect(lambda t_param: cbh.Mbh_interp(t_param / 1e9) - (fbh0 * Mcl_i - M3ej),
                           1, cbh.tend * 1e6 - 1,
                           xtol=1e2)
         return max(t, t_bisect)
 
 
-def get_mbh_params(nbh, bhv, t):
+def get_mbh_params(bhv, t):
     m_d = np.where(bhv[:, 2] <= t, bhv[:, 0], np.zeros_like(bhv[:, 0]) * np.nan)
-    nbh_core = len(m_d[~np.isnan(m_d)])
+    Nbh_core = len(m_d[~np.isnan(m_d)])
     kmax = len(m_d) - np.nanargmax(np.flip(m_d)) - 1
     # The numpy flip is only needed when there are multiple
     # BHs with the same mass, otherwise we would have kmin == kmax
@@ -38,7 +49,7 @@ def get_mbh_params(nbh, bhv, t):
     if m_d[kmax] != m_d[np.nanargmax(m_d)]:
         raise RuntimeError(f"Error in determining {kmax=}")
 
-    return m_d, mbhmax, mbhmin, nbh_core, kmin, kmax
+    return m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax
 
 
 def tbalanced(Mbh, Mcl, rh, m_mean):
@@ -141,3 +152,51 @@ def evolve_eccentricity(a0, e0, m1, m2, f=10):
     except Exception as e:
         print(e, file=sys.stderr)
         return np.nan
+
+
+# def cdf(m, mmin, mmax, alpha):
+#     return (m ** (1 + alpha) - mmin ** (1 + alpha)) / (mmax ** (1 + alpha) - mmin ** (1 + alpha))
+#
+#
+# def get_alpha_samp(bhv):
+#     sortsamp = np.sort(bhv[:, 0][~np.isnan(bhv[:, 0])])
+#     p = np.arange(len(sortsamp)) / (len(sortsamp) - 1)
+#     alpha_samp = curve_fit(lambda m, alpha: cdf(m, sortsamp[0], sortsamp[-1], alpha), sortsamp, p)[0][0]
+#
+#     return alpha_samp
+
+def get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_previous):
+    # Compute the exponent, alpha, of the BH mass function, p(m) \propto m^alpha
+    # This is used in the sampling of BH masses
+
+    # Maximum and minimum values of alpha
+    MIN_ALPHA = -10
+    MAX_ALPHA = 10
+
+    data = m_d[~np.isnan(m_d)]
+    sum_logm = np.log(data).sum()
+
+    def mleq(alpha):
+        alpha_cont = alpha if alpha != -1 else -1 + 1e-5
+
+        return Nbh_core / (-alpha_cont - 1) - sum_logm - Nbh_core * (
+                -mbhmin ** (1 + alpha_cont) * np.log(mbhmin) + mbhmax ** (1 + alpha_cont) * np.log(mbhmax)) / (
+                mbhmin ** (1 + alpha_cont) - mbhmax ** (1 + alpha_cont))
+
+    try:
+        # print("---", flush=True)
+        return bisect(mleq, MIN_ALPHA, MAX_ALPHA)
+    except ValueError:
+        if alpha_previous is not None:
+            # print("a", flush=True)
+            return alpha_previous
+
+        mleq_min = mleq(MIN_ALPHA)
+        mleq_max = mleq(MAX_ALPHA)
+
+        if np.abs(mleq_max) < np.abs(mleq_min):
+            # print("b", flush=True)
+            return MAX_ALPHA
+        else:
+            # print("c", flush=True)
+            return MIN_ALPHA
