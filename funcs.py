@@ -52,17 +52,17 @@ def get_mbh_params(bhv, t):
     return m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax
 
 
-def tbalanced(Mbh, Mcl, rh, m_mean):
-    N_rh = 3.21
-    coulomb_log = 10
-    G = 4490  # pc^3 M_sun^-1 Gyr^-1
-    a1 = 1.47
-
-    fbh = Mbh / Mcl
-    psi = 1. + a1 * fbh / 0.01
-    trh0 = 0.138 * np.sqrt(Mcl * rh ** 3 / G) * (1 / (psi * m_mean * coulomb_log))
-    return N_rh * trh0  # Gyr
-
+# def tbalanced(Mbh, Mcl, rh, mbh_mean, m_mean):
+#     N_rh = 1.2321
+#     coulomb_log = 10  # I use the coulomb logarithm, not a great difference, but instead of 10, could be 7-8
+#     G = 4490  # pc^3 M_sun^-1 Gyr^-2
+#
+#     fbh = Mbh / Mcl
+#     psi = 1. + fbh * (
+#                 mbh_mean / m_mean) ** 1.25  # Formula is only valid for clusters where fbh does not surpass roughly 10% (does not increase beyond that threshold)
+#     trh0 = 0.138 * np.sqrt(Mcl * rh ** 3 / G) * (1 / (psi * m_mean * coulomb_log))
+#     return N_rh * trh0  # Gyr
+# # Whenever called, the average BH mass is needed as an input as well.
 
 def dotp(a, b):
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]

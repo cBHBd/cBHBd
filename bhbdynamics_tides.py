@@ -8,7 +8,9 @@ from imf.imf import Kroupa
 from numpy.random import random
 
 import cBHBd.funcs
-from cBHBd.clusterbh import clusterBH
+from cBHBd.clusterbh import clusterBH  # FIXME
+from cBHBd.clusterbh_old import clusterBH_old  # FIXME
+
 from cBHBd.funcs import MergerOutcome
 
 
@@ -34,7 +36,7 @@ def run_model(tf0, Mcl_i, Z, Z_file, rho_h_i,
     try:
         return _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, debug_mode, output_dataframe, seed)
     except Exception as err:
-        print(f"Error in model with", flush=True)
+        print("Error in model with", flush=True)
         print(f"\t Mass = {Mcl_i} M_sun", flush=True)
         print(f"\t Metallicity = {Z} ({Z_file})", flush=True)
         print(f"\t Final time = {tf0} Gyr", flush=True)
@@ -52,7 +54,7 @@ def _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, debug_mode, output_dataframe
     clprops = []
 
     if debug_mode and verbose:
-        print(f"Generating new model with")
+        print("Generating new model with")
         print(f"\t Mass = {Mcl_i:.2g} M_sun")
         print(f"\t Metallicity = {Z:.2e}")
         print(f"\t Final time = {tf0 / 1e9 :.3g} Gyr")
@@ -67,7 +69,6 @@ def _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, debug_mode, output_dataframe
     # Cluster evolution
     # Some other model parameters
     csi = 0.09  # Relaxation coefficient
-    a1 = 1.47  # Coefficient relating f_bh to t_relax (see Antonini+Gieles)
 
     bhout = []
     v_esc_i = 50 * (Mcl_i / 1e5) ** (1 / 3) * (rho_h_i / 1e5) ** (1 / 6)
@@ -78,10 +79,14 @@ def _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, debug_mode, output_dataframe
 
     imf = Kroupa(mmin=mmin, mmax=mmax)
     mmean = imf.m_integrate(mmin, mmax)[0] / imf.integrate(mmin, mmax)[0]
-
     cbh = clusterBH(Mcl_i / mmean, rho_h_i, m0=mmean, Z=Z, ssp=True, kick=kick, dtout=None,
-                    dense_output=True,
-                    tend=15e3, Mbh_min=0, RG=r_g)
+                    dense_output=True, tend=15e3, Mbh_min=0, rg=r_g)  # galactocentric distance in cbh is rg, not RG
+
+    # FIXME: remove this
+    # cbh_old = clusterBH_old(Mcl_i / mmean, rho_h_i, m0=mmean, Z=Z, ssp=True, kick=kick, dtout=None,
+    #                         dense_output=True, tend=15e3, Mbh_min=0,
+    #                         rg=r_g)  # galactocentric distance in cbh is rg, not RG
+    # return cbh, cbh_old
 
     # Build array with BH properties for retained BHs
     bhv = []
@@ -127,26 +132,6 @@ def _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, debug_mode, output_dataframe
 
     if M3ej > 100:
         raise RuntimeError("Initial M3ej is too big")
-
-    # # Compute alpha for sampling
-    # alpha_samp = cBHBd.funcs.get_alpha_samp(bhv)
-
-    if debug_mode:
-        a_poly = 8.53174266519503e+16
-        b_poly = -7177288764328684
-        c_poly = 238181873067096.75
-        d_poly = -3958278869787.77
-        e_poly = 34364808989.07675
-        f_poly = -145642408.80801892
-        g_poly = 228858.39425097185
-        h_poly = 54.322223269234705
-        i_poly = -0.1954553717385152
-
-        alpha_old = a_poly * (Z ** 8) + b_poly * (Z ** 7) + c_poly * (Z ** 6) + d_poly * (Z ** 5) + e_poly * (
-                Z ** 4) + f_poly * (Z ** 3) + g_poly * (Z ** 2) + h_poly * (Z ** 1) + i_poly
-
-        debug_data["alpha_old"] = alpha_old
-        # debug_data["alpha_samp"] = alpha_samp
 
     alpha_samp = None
 
@@ -232,16 +217,19 @@ def _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, debug_mode, output_dataframe
         ah = G_AU_MSUN_KMS * m1 * m2 / (2 * mmean * vd ** 2)  # in AU if sigma in Km/s and M in solar masses
 
         Eh = (1 / 2) * (m1 + m2) * vd ** 2  # in Msun*(km/s)^2
-        fbh = Mbh / (Mcl + Mbh)
-        psi = 1. + a1 * fbh / 1e-2  # relaxation alla Antonini+Gieles 2019
-        trh = 2.06e5 * np.sqrt((Mcl + Mbh) * rh ** 3) / (psi * mmean)
-        Edot = 1.53e-7 * csi * (Mcl ** 2 / rh) / trh  # convert to M=M_sun, L=1AU, G=1
+        # fbh = Mbh / Mcl
+        # psi = 1. + fbh * (mbhmean / mmean) ** 1.25
+        # trh = 2.06e5 * np.sqrt(Mcl * rh ** 3) / (
+        #         psi * mmean)  # Again, Mcl, cluster mass. We miss the Coulomb logarithm, I see it is used later for core radius/half-mass radius of BHs, if you include it, clusterBH has gamma=0.02, but the constant needs to be replaced because I think that they assumed a logarithm equal to 10 before, we just multiply with 10
+        # Edot = 0.0728 / 0.1 * 1.53e-7 * csi * (
+        #         Mcl ** 2 / rh) / trh  # convert to M=M_sun, L=1AU, G=1. Previously, we used zeta=0.1. We now use zeta=0.0728, so we apply a prefactor.
+        # # TODO: The best approach would be to have cbh.zeta for instance (same for other parameters), but we could leave that for the end, when we want to make our codes more readable.
 
         # Do Montecarlo of three-body encounters
         a = ah
         Ebin = Eh
         e_b = np.sqrt(random())
-        ell_b = np.sqrt(1 - e_b ** 2)
+        # ell_b = np.sqrt(1 - e_b ** 2)
         merger_type = None
 
         if debug_mode:
@@ -358,10 +346,15 @@ def _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, debug_mode, output_dataframe
                     assert t3 >= 0, "Negative t3"
 
                     # In-cluster inspirals
-                    ell_gw = 1.3 * ((m1 * m2) ** 2 * (m1 + m2) / (c ** 5 * Edot)) ** (1 / 7) * a ** (-5 / 7)
-                    if ell_b < ell_gw:
+                    R = (1 + 73 / 24 * e_b ** 2 + 37 / 96 * e_b ** 4)
+                    t_gw = 5 * c ** 5 * a ** 4 * (1 - e_b ** 2) ** (7 / 2) / (64 * m1 * m2 * (m1 + m2) * R) * 58 / 365
+                    if t_gw < t3:
                         merger_type = MergerOutcome.InClusterInspiral
                         break
+                    # ell_gw = 1.3 * ((m1 * m2) ** 2 * (m1 + m2) / (c ** 5 * Edot)) ** (1 / 7) * a ** (-5 / 7)
+                    # if ell_b < ell_gw:
+                    #     merger_type = MergerOutcome.InClusterInspiral
+                    #     break
 
                     # Dani
                     # Inspirals driven by direct encounters
@@ -371,6 +364,7 @@ def _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, debug_mode, output_dataframe
                     Nst = (Mcl - Mbh) / mst
                     lnDelta = max(1, np.log(0.02 * Nst))
                     lnDelta2 = max(1, np.log(0.02 * Nbh))
+                    # print(f"{mst = :.3f} \t {mmean = :.3f} ")
                     rhBH = rh * (Mbh / Mcl) ** (3 / 5) * (mbhmean / mst * lnDelta2 / lnDelta) ** (2 / 5)
                     vdBH = np.sqrt(0.2 * G_AU_MSUN_KMS * Mbh / (rhBH * PC_TO_AU))  # Breen & Heggie (2012)
                     # dseta2 = 0.0926
@@ -393,7 +387,7 @@ def _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, debug_mode, output_dataframe
                     assert 0 <= pdi <= 1, "pdi not computed properly"
                     isdirectinspiral = (pdi >= random())
                     if isdirectinspiral:
-                        e_b = np.sqrt(1 - ell_cap ** 2)  # FIXME: ell_gw or ell_cap
+                        e_b = np.sqrt(1 - ell_cap ** 2)
                         merger_type = MergerOutcome.DirectInspiral
                         break
 
@@ -588,7 +582,7 @@ if __name__ == "__main__":
     debug_mode = True
     tf0_tst = astropy.cosmology.Planck18.lookback_time(np.array([3, ])).value[0]
 
-    print(f"---------------- TEST RUN BEGIN ----------------")
+    print("---------------- TEST RUN BEGIN ----------------")
 
     merger_stats = {merger_type: [] for merger_type in MergerOutcome.get_outcomes()}
     merger_stats["total"] = []
@@ -597,11 +591,14 @@ if __name__ == "__main__":
     for seed in seeds:
         tst_start_time = time.time()
 
+        # FIXME: clean this up
+
         # gw, _, _, _ = run_model(13, 1e6, 0.00125892541179417,
         #                         f"./data/BHs/RAPID/bh_Z0.00125892541179417.dat",
         #                         1e3, seed=seed)
         N = 8e5
         Mcl = N * 0.638
+        # Mcl = N * 0.586  # Changed average mass to the one predicted by the clusterBH Kroupa
         rv = 2
         rg = 20
         rh = rv / 1.25
@@ -634,4 +631,4 @@ if __name__ == "__main__":
     print(f"\ttotal \t {Nm_total.mean():.2f} ± {Nm_total.std():.1f}")
 
     print(f"\n Test run time: {tst_end_time - tst_start_time:.1f} s")
-    print(f"---------------- TEST RUN END ----------------")
+    print("---------------- TEST RUN END ----------------")
