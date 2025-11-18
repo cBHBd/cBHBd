@@ -165,6 +165,18 @@ def evolve_eccentricity(a0, e0, m1, m2, f=10):
 #
 #     return alpha_samp
 
+def prob_esc(ma, mb, m):
+    # In a binary-single resonant interaction with masses ma, mb, m;
+    # return the probability that the star with mass m escapes.
+    # Computed from Eq. 36 in Ginat & Perets (2021)
+    temp1 = ma ** 4 * mb ** 4 / (ma + mb) ** (5 / 2)
+    temp2 = ma ** 4 * m ** 4 / (ma + m) ** (5 / 2)
+    temp3 = mb ** 4 * m ** 4 / (mb + m) ** (5 / 2)
+    denom = (ma + mb) ** (5 / 2) * (temp1 + temp2 + temp3)
+
+    return ma ** 4 * mb ** 4 / denom
+
+
 def get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_previous):
     # Compute the exponent, alpha, of the BH mass function, p(m) \propto m^alpha
     # This is used in the sampling of BH masses

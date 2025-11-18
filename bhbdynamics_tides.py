@@ -313,24 +313,26 @@ def _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, debug_mode, output_dataframe
                 if is_capture:
                     break
 
-                # TODO
-                # # Exchange
-                # exchange_outcomes = ["preservation", "exchange_1", "exchange_2"]
-                # exchange_outcome = np.random.choice(exchange_outcomes, p=[Ppres, Pex1, max(0.0, 1 - Pex1 - Ppres)])
-                #
-                # if exchange_outcome != "preservation":
-                #     if exchange_outcome == "exchange_1":
-                #         k1, k3 = k3, k1
-                #         # print("Exchange1", file=sys.stderr, flush=True)
-                #     elif exchange_outcome == "exchange_2":
-                #         k2, k3 = k3, k2
-                #         # print("Exchange2", file=sys.stderr, flush=True)
-                #
-                #     if bhv[k2, 0] > bhv[k1, 0]:  # Force that the primary is always the most massive
-                #         k1, k2 = k2, k1
-                #
-                #     m1, S1, t1, gen1 = bhv[k1, 0], bhv[k1, 1], bhv[k1, 2], bhv[k1, 3]
-                #     m2, S2, t2, gen2 = bhv[k2, 0], bhv[k2, 1], bhv[k2, 2], bhv[k2, 3]
+                # Dani: Exchanges
+                Ppres = cBHBd.funcs.prob_esc(m1, m2, m3)
+                Pex2 = cBHBd.funcs.prob_esc(m1, m3, m2)
+
+                exchange_outcomes = ["preservation", "exchange_1", "exchange_2"]
+                exchange_outcome = np.random.choice(exchange_outcomes, p=[Ppres, max(0.0, 1 - Pex2 - Ppres), Pex2])
+
+                if exchange_outcome != "preservation":
+                    if exchange_outcome == "exchange_1":
+                        k1, k3 = k3, k1
+                        # print("Exchange1", file=sys.stderr, flush=True)
+                    elif exchange_outcome == "exchange_2":
+                        k2, k3 = k3, k2
+                        # print("Exchange2", file=sys.stderr, flush=True)
+
+                    if bhv[k2, 0] > bhv[k1, 0]:  # Force that the primary is always the most massive
+                        k1, k2 = k2, k1
+
+                    m1, S1, t1, gen1 = bhv[k1, 0], bhv[k1, 1], bhv[k1, 2], bhv[k1, 3]
+                    m2, S2, t2, gen2 = bhv[k2, 0], bhv[k2, 1], bhv[k2, 2], bhv[k2, 3]
 
                 vbin = np.sqrt(dE * Ebin * (2 / (m1 + m2)) * (m3 / (m1 + m2 + m3)))  # recoil in km/s
                 q3 = m3 / (m1 + m2)
