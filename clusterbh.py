@@ -1722,7 +1722,7 @@ class clusterBH:
             self.Mst_interp = lambda t: sol.sol(t * 1e3)[0] # Mst(t) [Msun (Gyr)]
             self.Mbh_interp = lambda t: sol.sol(t * 1e3)[1] # Mbh(t) [Msun (Gyr)]
             self.rh_interp = lambda t: sol.sol(t * 1e3)[2] # rh(t) [pc (Gyr)]
-            self.mst_interp = lambda t: sol.sol(t * 1e3)[4] # mst(t) [pc (Gyr)]
+            self.mst_interp = lambda t: sol.sol(t * 1e3)[3] # mst(t) [pc (Gyr)]
             self.M_interp = lambda t: self.Mst_interp(t) + self.Mbh_interp(t)
             N_interp = interp1d(self.t, self.Mst / self.mst + self.Nbh)
             self.m_interp = lambda t: self.M_interp(t) / N_interp(t)
