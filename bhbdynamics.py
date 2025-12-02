@@ -167,7 +167,7 @@ def _run_model(tf0, Mcl_i, Z, Z_file, rho_h_i, r_g, verbose, output_dataframe, s
         Mbh = max(cbh.Mbh_interp(t / 1e9), 0)
         mmean = cbh.m_interp(t / 1e9)
         mst = cbh.mst_interp(t / 1e9)
-        Edot = cbh.Edot_interp(t / 1e9)
+        Edot = cbh.Edot_rlx_interp(t / 1e9)
         Edot *= PC_TO_AU ** 2 * 1e-18  # Convert to AU^2 Msun / yr^3
 
         lastBH = False
