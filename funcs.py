@@ -1,12 +1,13 @@
 import sys
 
 import numpy as np
-import time
 from numpy.random import random
 from scipy.optimize import bisect
 
 
 class MergerOutcome:
+    # Define all possible merger types
+
     InClusterInspiral = "incluster_inspiral"
     GWCaptureBS = "gw_capture_bs"
     GWCaptureBB = "gw_capture_bb"
@@ -23,6 +24,8 @@ class MergerOutcome:
 
 
 def get_sync_time(cbh, fbh0, Mcl_i, M3ej, t):
+    # Use the ejected BH mass to synchronise the time evolution of clusterBH and BHBdynamics
+
     if fbh0 * Mcl_i - M3ej >= cbh.Mbh_interp(t / 1e9):
         return t
     elif fbh0 * Mcl_i - M3ej >= cbh.Mbh0:
@@ -37,6 +40,8 @@ def get_sync_time(cbh, fbh0, Mcl_i, M3ej, t):
 
 
 def get_mbh_params(bhv, t):
+    # Get all relevant parameters of the BH population at time t
+
     m_d = np.where(bhv[:, 2] <= t, bhv[:, 0], np.zeros_like(bhv[:, 0]) * np.nan)
     Nbh_core = len(m_d[~np.isnan(m_d)])
     kmax = len(m_d) - np.nanargmax(np.flip(m_d)) - 1
@@ -52,28 +57,18 @@ def get_mbh_params(bhv, t):
     return m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax
 
 
-# def tbalanced(Mbh, Mcl, rh, mbh_mean, m_mean):
-#     N_rh = 1.2321
-#     coulomb_log = 10  # I use the coulomb logarithm, not a great difference, but instead of 10, could be 7-8
-#     G = 4490  # pc^3 M_sun^-1 Gyr^-2
-#
-#     fbh = Mbh / Mcl
-#     psi = 1. + fbh * (
-#                 mbh_mean / m_mean) ** 1.25  # Formula is only valid for clusters where fbh does not surpass roughly 10% (does not increase beyond that threshold)
-#     trh0 = 0.138 * np.sqrt(Mcl * rh ** 3 / G) * (1 / (psi * m_mean * coulomb_log))
-#     return N_rh * trh0  # Gyr
-# # Whenever called, the average BH mass is needed as an input as well.
-
 def dotp(a, b):
+    # Compute the dot product of two vectors
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
 
 def cross(a, b):
+    # Compute the cross product of two vectors
     return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
 
 
 def recoil(m1, m2, S1, S2):
-    q = m2 / m1  # q<0
+    q = m2 / m1
     eta = q / (1 + q) ** 2
 
     theta = np.arccos(-1. + random() * (1. + 1.))
@@ -92,17 +87,17 @@ def recoil(m1, m2, S1, S2):
     chit2 = chit[0] ** 2 + chit[1] ** 2 + chit[2] ** 2
     delta = (chi1 - q * chi2) / (1. + q)
 
-    #     parallel components
+    # Parallel components
     chip = dotp(chit, j)
     deltap = dotp(delta, j)
 
-    #     perp components
+    # Perpendicular components
     chi_cross = cross(chit, j)
     delta_cross = cross(delta, j)
     chiL = np.sqrt(chi_cross[0] ** 2 + chi_cross[1] ** 2 + chi_cross[2] ** 2)
     deltaL = np.sqrt(delta_cross[0] ** 2 + delta_cross[1] ** 2 + delta_cross[2] ** 2)
 
-    #     recoil velocity
+    # Recoil velocity
     A = 1.2e4
     B = -0.93
     H = 6.9e3
@@ -120,8 +115,8 @@ def recoil(m1, m2, S1, S2):
             deltaL * (V11 + 2. * VA * chip + 4. * VB * chip ** 2 + 8. * VC * chip ** 3) + 2. * chiL * deltap * (
             C2 + 2. * C3 * chip)) * Dphi
     v_kick = np.sqrt(vm ** 2 + 2. * vm * vsL * np.cos(145. * np.pi / 180.) + vsL ** 2 + vsp ** 2)
-    #     recoil velocity
-    #     Compute new spin
+
+    # Compute new spin
     t0 = -2.8904
     t2 = -3.51712
     t3 = 2.5763
@@ -136,6 +131,8 @@ def recoil(m1, m2, S1, S2):
 
 
 def evolve_eccentricity(a0, e0, m1, m2, f=10):
+    # Evolve the eccentricity of a binary with initial SMA a0 and initial eccentricity e0 to a reference frequency f
+
     # f in Hz
     if e0 == 0:
         return 0
@@ -153,17 +150,6 @@ def evolve_eccentricity(a0, e0, m1, m2, f=10):
         print(e, file=sys.stderr)
         return np.nan
 
-
-# def cdf(m, mmin, mmax, alpha):
-#     return (m ** (1 + alpha) - mmin ** (1 + alpha)) / (mmax ** (1 + alpha) - mmin ** (1 + alpha))
-#
-#
-# def get_alpha_samp(bhv):
-#     sortsamp = np.sort(bhv[:, 0][~np.isnan(bhv[:, 0])])
-#     p = np.arange(len(sortsamp)) / (len(sortsamp) - 1)
-#     alpha_samp = curve_fit(lambda m, alpha: cdf(m, sortsamp[0], sortsamp[-1], alpha), sortsamp, p)[0][0]
-#
-#     return alpha_samp
 
 def prob_esc(ma, mb, m):
     # In a binary-single resonant interaction with masses ma, mb, m;
@@ -196,19 +182,15 @@ def get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_previous):
                 mbhmin ** (1 + alpha_cont) - mbhmax ** (1 + alpha_cont))
 
     try:
-        # print("---", flush=True)
         return bisect(mleq, MIN_ALPHA, MAX_ALPHA)
     except ValueError:
         if alpha_previous is not None:
-            # print("a", flush=True)
             return alpha_previous
 
         mleq_min = mleq(MIN_ALPHA)
         mleq_max = mleq(MAX_ALPHA)
 
         if np.abs(mleq_max) < np.abs(mleq_min):
-            # print("b", flush=True)
             return MAX_ALPHA
         else:
-            # print("c", flush=True)
             return MIN_ALPHA

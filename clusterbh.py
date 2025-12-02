@@ -54,7 +54,7 @@ class clusterBH:
         self.N_points = 500  # Number of points used for even spacing.
         self.Mbh0, self.mbh0 = 1e-99, 1e-89  # [Msun, Msun]. We set the BH masses equal to 0. They are later extracted from the BHMF. If not, the cluster is evolved without BHs.
 
-        # Model parameters.
+        # Model parameters. 
         self.mns = 1.4  # [Msun] Mass of Neutron Stars (NS).
         self.mst_inf = 1.4  # [Msun] Maximum upper stellar mass at infinity. Serves as the upper boundary for the average stellar mass. Default value to stellar remnants, subject to change for IMFs that produce heavy stars.
         self.sigmans = 265  # [km/s] Velocity dispersion for NS.
@@ -235,9 +235,9 @@ class clusterBH:
             'Constant': lambda rh, rt: self.xi0  # Constant evaporation rate.
         }
 
-        # Galactic model dictionary.
+        # Galactic model dictionary. 
         self.galactic_model_dict = {
-            # Dictionary for spherically symmetric galactic potentials. The index is used for the tidal radius only and it is dimensionless. The potential has units are [pc^2/Myr^2].
+            # Dictionary for spherically symmetric galactic potentials. The index is used for the tidal radius only and it is dimensionless. The potential has units are [pc^2/Myr^2]. 
             # Derivative of the potential is [pc/Myr^2] and is used to specify the velocity profile. X2 is the ratio of the velocity profile squared over twice the velocity dispersion squared for isotropic models, currently used for tidal spiraling only. Density is in [Msun/pc^3] and is used in tidal spiraling.
             # Distance r is inserted in kpc everywhere. X2 is valid only for a Maxwellian distribution. Current treatment does not allow for combinations of galactic potentials at different ranges of the galactocentric distance.
             # Add rt, E, L in the future for eccentric orbits. They need information for rapo, rperi.
@@ -595,7 +595,7 @@ class clusterBH:
             # Zhao model. Generalizes the families introduced before. For example, it agrees with Hernquist, Plummer, Jaffe, perfect sphere. NFW and Moore struggle with the incomplete beta. The user should keep in mind to always insert well behaved exponents so that the special functions are well defined, that is gammap > 0, gammap1 > 3, gammap2 < 3. The family of models with gammap2=0 does not have an analytic expression for the velocity dispersion squared so it is not presented separately. The same applies to generalized Moore models with gammap -> 3 - gammap2 + epsilon, gammap1 -> 3 + epsilon.
         }
 
-        # Future extension: Add a SMBH in the model. This shifts rt_index, Vc(r) or M(r) and X2(r) because the potential and its derivatives are shifted by the inclusion of a point-mass term.
+        # Future extension: Add a SMBH in the model. This shifts rt_index, Vc(r) or M(r) and X2(r) because the potential and its derivatives are shifted by the inclusion of a point-mass term. 
         # Future extension2: Add a dictionary with anisotropic models and the solution for the radial velocity dispersion from Jean's equations.
 
         # Cluster model dictionary. NFW, Power-law, MIS and Hubble use a fixed maximum distance to estimate the potential and its derivative, to avoid divergences.
@@ -964,15 +964,15 @@ class clusterBH:
         """
         Computes the scaling factor between two different IMFs
         by normalizing and integrating them over the given mass ranges.
-
+        
         This function first determines normalization constants to ensure IMF continuity,
-        then integrates each IMF to compute their total mass, and finally calculates
+        then integrates each IMF to compute their total mass, and finally calculates 
         the fraction of mass in the high-mass end of the second IMF relative to the first.
-
+        
         This function is not needed if ssp=True. It only allows users to work with the same
         nu, tsev for bottom light IMFs. Top-heavy IMFs needs different values of nu, tsev that the user
         must indicate.
-
+        
         Parameters
         ----------
         a_slopes1 : list of float
@@ -983,11 +983,11 @@ class clusterBH:
             The mass breakpoints corresponding to `a_slopes1`. [Msun]
         m_breaks2 : list of float
             The mass breakpoints corresponding to `a_slopes2`. [Msun]
-
+        
         Returns
         -------
         float
-            The ratio of the two IMFs' total mass, adjusted by the mass fraction
+            The ratio of the two IMFs' total mass, adjusted by the mass fraction 
             in the upper limit of the second IMF relative to the first. First IMF is the Kroupa.
         """
 
@@ -1101,7 +1101,7 @@ class clusterBH:
         """
         Depletes the BHMF by ejecting mass starting from the heaviest bins. This is subject to change once dark clusters are considered.
         Possible extension. Insert M_eject and also the type. Ejections are subtracted top-down while evaporation bottom-up.
-
+    
         Parameters:
          -----------
         M_eject : float
@@ -1115,7 +1115,7 @@ class clusterBH:
         --------
         Tuple of numpy.ndarray
            Updated arrays for the mass in each BH bin (M_BH) and the number of BHs (N_BH).
-
+    
         Notes:
         ------
         - The function starts ejecting mass from the heaviest bin and proceeds to lighter bins.
@@ -1158,12 +1158,12 @@ class clusterBH:
     def _find_mmax(self, Mbh):
         """
         Computes the maximum BH mass at each time instance for two cases of BHMFs. Either directly from the SSP tools, or from a simple power-law the user has specified.
-
+    
         Parameters:
         -----------
         Mbh : float
             The current total BH mass [Msun].
-
+    
         Returns:
         --------
         mmax : float
@@ -1197,9 +1197,9 @@ class clusterBH:
     # Average BH mass.
     def _mbh(self, Mbh):
         """
-        Calculates the updated average BH mass after ejecting a specified amount of BH mass.
+        Calculates the updated average BH mass after ejecting a specified amount of BH mass. 
         The computation is done based on which BHMF is used (either from the SSP or a simple power-law specified by the user).
-
+    
         Parameters:
         -----------
         Mbh : float
@@ -1209,7 +1209,7 @@ class clusterBH:
         --------
         float
           Average BH mass after ejections [Msun].
-
+    
         Notes:
         ------
         - The function first calculates the total mass to be ejected (`M_eject`) in [Msun].
@@ -1253,7 +1253,7 @@ class clusterBH:
         -----------
         M : float
            Total mass of the cluster [Msun].
-
+           
         RG : float
             Galactocentric distance [kpc].
 
@@ -1285,11 +1285,11 @@ class clusterBH:
 
         return rt
 
-    # Average mass of stars, due to stellar evolution for ssp=False. Used only for estimating mst at tcc due to sev (no tides are included).
+    # Average mass of stars, due to stellar evolution for ssp=False. Used only for estimating mst at tcc due to sev (no tides are included).  
     def _mst_sev(self):
         """
         Solves the differential equations for mst and Mst over the time interval,
-        considering mst = m0, Mst=M0 for t < self.tsev.
+        considering mst = m0, Mst=M0 for t < self.tsev. 
 
         Returns:
         -------
@@ -1317,7 +1317,7 @@ class clusterBH:
     def _lambda(self, fbh):
         """
         Calculates the exponent connecting velocity dispersion to mass.
-
+        
         Parameters
         ----------
         fbh : float
@@ -1335,7 +1335,7 @@ class clusterBH:
 
         return lambda_
 
-    # Friction term ψ in the relaxation. It is characteristic of mass spectrum within rh, here due to BHs.
+    # Friction term ψ in the relaxation. It is characteristic of mass spectrum within rh, here due to BHs. 
     def _psi(self, fbh, M, mbh, mst):
         """
         Calculates ψ for the cluster based on various parameters.
@@ -1344,13 +1344,13 @@ class clusterBH:
         -----------
         fbh : float
            A factor representing the BH fraction in the range [0, 1].
-
+    
         M : float
            Total mass of the cluster, in solar masses [Msun].
-
+    
         mbh : float
            Average BH mass in solar masses [Msun].
-
+    
         mst : float
            Average stellar mass [Msun].
 
@@ -1366,7 +1366,7 @@ class clusterBH:
         - The average stellar mass `mav` is derived by dividing the total cluster mass by the number of particles.
         - The exponent `lambda` is either a constant value or it evolves based on the BH fraction (if `lambda_exponent_run` is True),
           starting from equal velocity dispersion for different particles and evolving towards equipartition as time passes.
-        - The expression for `psi` includes a combination of parameters like `a0`, `a11`, `a12`, `b1`, `b2`,
+        - The expression for `psi` includes a combination of parameters like `a0`, `a11`, `a12`, `b1`, `b2`, 
           which relate the properties within the cluster's half-mass radius (`rh`) to the global properties of the cluster.
         - For dark clusters, a more complex expression for `psi` should used, incorporating contributions from both the stellar and BH populations.
         - From t=0 until tcc, a better expression may be needed, one that accounts for initial stellar mass spetrum and how the two populations evolve up until tcc.
@@ -1390,26 +1390,26 @@ class clusterBH:
 
         return psi
 
-    # Relaxation as defined by Spitzer. Here we consider the effect of mass spectrum due to BHs.
+    # Relaxation as defined by Spitzer. Here we consider the effect of mass spectrum due to BHs. 
     def _trh(self, M, rh, fbh, mbh, mst):
         """
-        Calculates the relaxation timescale (`trh`) for a cluster, taking into account mass, radius,
+        Calculates the relaxation timescale (`trh`) for a cluster, taking into account mass, radius, 
         BH fraction and time evolution.
 
         Parameters:
         -----------
         M : float
           Total mass of the cluster [Msun].
-
+    
         rh : float
            Half-mass radius of the cluster [pc].
-
+    
         fbh : float
            The BH fraction in the range [0, 1].
-
+    
         mbh : float
            Average BH mass [Msun].
-
+    
         mst : float
           Average stellar mass [Msun].
 
@@ -1444,7 +1444,7 @@ class clusterBH:
 
         return trh
 
-    # Relaxation for evaporation depending on the assumptions.
+    # Relaxation for evaporation depending on the assumptions. 
     def _tev(self, M, rh, fbh, mbh, mst):
         """
         Calculates the evaporation timescale (`tev`) for a cluster, taking into account mass and radius.
@@ -1453,16 +1453,16 @@ class clusterBH:
         -----------
         M : float
           Total mass of the cluster [Msun].
-
+    
         rh : float
            Half-mass radius of the cluster [pc].
-
+    
         fbh : float
            The BH fraction in the range [0, 1].
-
+    
         mbh : float
            Average BH mass [Msun].
-
+    
         mst : float
           Average stellar mass [Msun].
 
@@ -1477,7 +1477,7 @@ class clusterBH:
         - The number of particles `Np` is computed using properties for both stars and BHs in the cluster.
         - The average mass evaporated is estimated from the average mass of each population.
         - The relaxation timescale is calculated using a formula that depends on the total mass `M`, the half-mass radius `rh`, the average mass `mav`, particle number `Np`
-          and the gravitational constant `G`.
+          and the gravitational constant `G`. 
         """
 
         # Number of particles.
@@ -1488,7 +1488,7 @@ class clusterBH:
 
         # Relaxation for evaporation.
         tev = 0.138 * sqrt(M * rh ** 3 / self.G) / (mev * log(self.gamma * Np))  # [Myr]
-        # If this timescale is used for evaporation. It may require corrections (ψ) for the case of dark clusters through mev.
+        # If this timescale is used for evaporation. It may require corrections (ψ) for the case of dark clusters through mev. 
         # Same argument for trh and rotation.
 
         return tev
@@ -1496,14 +1496,14 @@ class clusterBH:
     # Crossing time within the half-mass radius.
     def _tcr(self, M, rh, k=1):
         """
-        Calculates the crossing timescale (`tcr`) for a cluster, which is related to the time it takes
+        Calculates the crossing timescale (`tcr`) for a cluster, which is related to the time it takes 
         for particles to cross the half-mass radius of the cluster.
 
         Parameters:
         -----------
         M : float
            Total mass of the cluster [Msun].
-
+    
         rh : float
            Half-mass radius of the cluster [pc].
 
@@ -1528,7 +1528,7 @@ class clusterBH:
     def _tdf(self, M, RG, L, rh):
         """
         Calculates the time scale for dynamical friction.
-
+        
         Parameters
         ----------
         M : float
@@ -1537,7 +1537,7 @@ class clusterBH:
             Galactocentric distance [kpc].
         L : float
             Orbital angular momentum of cluster [pc^2/Myr].
-
+        
         rh : float
              Half-mass radius of the cluster [pc].
 
@@ -1571,7 +1571,7 @@ class clusterBH:
         -----------
         M : float
            Total mass of the cluster [Msun].
-
+    
         rh : float
            Half-mass radius of the cluster [pc].
 
@@ -1582,9 +1582,9 @@ class clusterBH:
 
         Notes:
         ------
-        - The density `rhoh` is computed as the mass enclosed within the half-mass radius (`rh`), using the formula:
+        - The density `rhoh` is computed as the mass enclosed within the half-mass radius (`rh`), using the formula: 
           `rhoh = 3 * M / (8 * pi * rh ** 3)`. The density is in units of [Msun/pc^3].
-        - The escape velocity `vesc` is then calculated using the relation: `vesc = 50 * (M / 1e5) ** (1/3) * (rhoh / 1e5) ** (1/6)`, where the units for `vesc` are in [km/s].
+        - The escape velocity `vesc` is then calculated using the relation: `vesc = 50 * (M / 1e5) ** (1/3) * (rhoh / 1e5) ** (1/6)`, where the units for `vesc` are in [km/s]. 
           This formula expresses the central escape velocity based on the mass and the density of the cluster.
         - The escape velocity is further augmented by multiplying it by the factor `fc`, which adjusts the value according to the specific King model used for the cluster.
         - Time dependence if `fc` is neglected, however it should increase over time (central potential becomes steeper, or concentration parameter increases).
@@ -1600,17 +1600,17 @@ class clusterBH:
 
         return vesc
 
-    # Construct the differential equations to be solved.
+    # Construct the differential equations to be solved. 
     def _odes(self, t, y):
         """
-        Computes the time derivatives of the system's state variables, which describe the evolution of a star cluster
+        Computes the time derivatives of the system's state variables, which describe the evolution of a star cluster 
         under various physical processes including stellar evolution, tidal effects, ejections, mass segregation, and core collapse.
 
         Parameters:
         -----------
         t : float
            Time elapsed since the beginning of the cluster's evolution, in [Myrs].
-
+    
         y : array
            A sequence representing the state variables:
            - y[0] : float : Stellar mass, `Mst` [Msun].
@@ -1620,7 +1620,7 @@ class clusterBH:
            - y[4] : float : Average stellar mass `mst` [Msun].
            - y[5]: float : Number of stars `Nst`.
            - y[6] : float : Galactocentric distance `RG` [kpc].
-
+           
         Returns:
         --------
         numpy.array
@@ -1668,7 +1668,7 @@ class clusterBH:
         eta = y[5]  # Parameter for mass segregation.
         RG = y[6]  # [kpc] Galactocentric distance.
 
-        # Time instances are repeated multiple times. It is faster to assign them in local variables.
+        # Time instances are repeated multiple times. It is faster to assign them in local variables.        
         tcc = self.tcc  # [Myr] Core collapse.
         tsev = self.tsev  # [Myr] Stellar evolution.
 
@@ -1749,7 +1749,7 @@ class clusterBH:
                 rh_dot += 6 * xi / r / tev * (
                         1 - kin) * rh ** 2 * index * Mst / M / denom  # [pc/Myr] If escapers carry negative energy as they leave, the half-mass radius is expected to increase since it is similar to emitting positive energy. The effect is proportional to tides.
 
-        # Unbalanced phase.
+        # Unbalanced phase. 
 
         if self.mass_segregation:
             eta_dot += self.mseg_func(t, trh, eta) * numpy.heaviside(tcc - t,
@@ -1776,7 +1776,7 @@ class clusterBH:
             if self.running_bh_ejection_rate_2:  # Decrease the ejection rate for clusters that are close to reaching equipartition.
                 beta_bh *= beta_f  # Change the ejection rate with respect to S.
 
-            Mbh_dot -= beta_bh * zeta * M / trh  # [Msun/ Myr] Ejection of BHs each relaxation.
+            Mbh_dot -= beta_bh * zeta * M / trh  # [Msun/ Myr] Ejection of BHs each relaxation. 
             rh_dot += 2 * Mbh_dot / M * rh * (1 + cg_factor / 2) / denom  # [pc/Myr] Contraction since BHs are removed.
 
         Mst_dotej, mst_dotej = 0, 0  # [Msun/Myr] Mass loss rates from stellar ejections.
@@ -1866,10 +1866,10 @@ class clusterBH:
         Output:
         ------
         - Cluster parameters are computed and can be saved in a text file if selected.
-
+        
         Notes:
         ------
-        - Initial conditions for stellar mass, BH mass, half-mass radius, segregation parameter, average stellar mass, galactocentric distance and number of stars are set to
+        - Initial conditions for stellar mass, BH mass, half-mass radius, segregation parameter, average stellar mass, galactocentric distance and number of stars are set to 
           `self.M0`, `self.Mbh0`, `self.rh0`, `self.eta0`, `self.m0`, `self.N`, `self.rg` respectively.
         - Results are stored as attributes of the object for further analysis.
         """
@@ -2068,16 +2068,16 @@ Firstly, psi = (self.a0 * (mst / m) ** self.b0) ** (1 + lambda_) * (1 - 2 * fbh)
 Secondly, we need to change mev from mst to another expression that accounts for the fact that m gets closer to mbh. The proper inclusion should be a function that gives mst for fbh->0 and mbh * psi for fbh->1. This makses sense, as tev=trh for the 1 component model, regardless the component.
 -Example: mev = mst + (mbh * psi - mst) * exp(-k*(1- fbh)) 
 
-
+ 
 Orbit:
 - For a given potential, in the function _odes the following part can be included.
 
  RG, RGdot = y[6], y[7] # [kpc], [kpc/Myrs] Motion of the cluster.
  L = y[9] # [pc^2/Myrs] Angular momentum per unit mass.
-
+ 
  dRG_dt, dRGdot_dt, dtheta_dt = 0, 0, 0 # Derivatives for the motion of the cluster.
  dL_dt = 0 # [pc^2/Myrs^2] Rate of change of angular momentum per unit mass.
-
+ 
  Mg = self.Mg # [Msun] Mass of galaxy changes when the orbit changes.
  dPhi_dr = self.dPhi_dr_func(RG, Mg) # [pc / Myrs^2] Derivative of the potential. It takes parsec as input.
 
@@ -2104,9 +2104,9 @@ Orbit:
          L = 1e3 * RG * self.Vc_func(RG) # [pc^2 / Myrs] Angular momentum, should change because we change the distance.
          # Equation for distance is extracted from the variation of the angular momentum. 
          dRG_dt -= 2 / (4 - self.rt_index(RG)) * RG / tdf * numpy.heaviside(RG - 0.01 , 0) # [kpc / Myrs] Prefactor appears to be connected to the tidal radius. It is due to the scaling of the velocity profile with the radius.
-
+              
  derivs = numpy.array([Mst_dot, Mbh_dot, rh_dot, mst_dot, Nst_dot, eta_dot dRG_dt, dRGdot_dt, dtheta_dt, dL_dt], dtype=object) # Save all derivatives in a sequence.
-
+   
 This describes how a globular cluster moves, by assuming the center of its mass satisfies Newton's equation. The tidal mass loss must be changed however, because rt and tev should be different. The equations are for RG, RGdot and theta (angle in the plane of motion). 
 In addition, tidal spiralling should change. Simplest approach is to introduce an equation for dL/dt.
 
@@ -2116,7 +2116,7 @@ In the function _evolve, add:
  dRdt = [self.Vcl0] # [pc/Myrs] Initial velocity.
  theta = [self.theta0] # [rad] Initial angle.
  L = [self.L] # [pc^2/Myrs] Initial angular momentum.
-
+ 
  y = [Mst[0], Mbh[0], rh[0], mst[0], Nst[0], eta[0], R[0], dRdt[0], theta[0], L[0]] # Combine them in a multivariable.
  .
  .
@@ -2126,11 +2126,11 @@ In the function _evolve, add:
  self.vcl_r = 1e3 * sol.y[7] / 1.023 # [km/s] Radial velocity of the cluster.
  self.theta_cl = sol.y[8] # [rad] Angle of orbit.
  self.L_cl = sol.y[9] # [pc^2 / Myrs] Angular momentum of the cluster.
-
+ 
  self.vcl_theta = self.L_cl / 1.023 / (self.rcl * 1e3) # [km/s] Angular velocity of the cluster.
  self.vcl = sqrt(self.vcl_r ** 2 + self.vcl_theta ** 2) # [km/s] Total velocity of the cluster.
-
-
+ 
+ 
 Finally in _init_ add,
 
  self.e = 0 # Eccentricity of orbit. If none, the user inserts it otherwise the pericenter and apocenter distances are expected as input.
@@ -2143,23 +2143,23 @@ before kwargs, while after add
  if self.eccentric and self.e > 0:
      self.Eorb = self.galactic_model_dict[self.galactic_model]['E'](0) # [pc^2/Myrs^2] Orbital energy of the cluster.
      self.L = self.galactic_model_dict[self.galactic_model]['L'](0) # [pc^2/Myrs] Orbital angular momentum.
-
+    
     # Eccentric orbits can be studied by simply inserting an initial distance. The respective velocity is computed automatically. If not, the simulation starts at the apocenter.
     # The angle is not important because of the spherical symmetry.
      if not hasattr(self, 'rcl0'):
          self.rcl0 = self.rapo # [kpc] Start from the apocenter if it is not specified.
-
+       
      else: # If initial position is specified, compute the velocity.
          if self.rperi > self.rcl0 or self.rapo < self.rcl0:
              raise ValueError(f"Invalid initial position {self.rcl0} kpc. For semi major axis {self.rg} kpc, the initial position is expected between the pericenter {self.rperi} kpc and the apocenter {self.rapo} kpc.")
          self.Vcl0 = 1e-3 * sqrt(abs(2 * (self.Eorb - self.phi_func(self.rcl0, self.Mg)) - self.L ** 2 / (self.rcl0 * 1e3) ** 2)) # [kpc / Myrs]. Initial radial velocity of the cluster. This is because it is dR / dt.
-
+       
          # Check if initial angle is between pi and 2pi, and adjust the sign of the radial velocity.
          if self.inwards:
              self.Vcl0 *= -1 # Reverse velocity.
 
  else:
-
+     
     self.rcl0 = self.rg # [kpc]  
 
 In the dictionary for galactic models, add orbital energy and angular momentum.
@@ -2173,43 +2173,43 @@ def _rt(self, M, RG, L):
        if not self.rt_approx and self.cluster_model != 'Point_mass':
            eq = lambda x: self.dPhic_dr_func(x, M) - x * ( L ** 2 / (RG * 1e3) ** 4 - self.d2Phi_dr2_func(RG))# Condition extracted from working on circular orbits in spherically symmetric potentials. Allows for the use of different potentials of the cluster.
            rt = fsolve(eq, x0=rt)[0] # Initial guess is the value from Point mass approximation for simplicity.
-
+        
     else:
        # Angular velocity squared.
        O2 = (self.Vc_func(RG) * 1.023 / (RG * 1e3)) ** 2 # [ 1 / Myrs^2]
-
+    
        # Prefactor for tidal radius.
        nu = self.rt_index(RG)
-
+    
        # Tidal radius.
        rt = (self.G * M / (nu * O2)) ** (1./3) # [pc] The expression is valid for circular orbits in spherically symmetric potentials. The point mass approximation for the potential of the cluster is assumed.
-
+    
        if not self.rt_approx and self.cluster_model != 'Point_mass':
            eq = lambda x: self.dPhic_dr_func(x, M) - x * nu * O2 # Condition extracted from working on circular orbits in spherically symmetric potentials. Allows for the use of different potentials of the cluster.
            rt = fsolve(eq, x0=rt)[0] # Initial guess is the value from Point mass approximation for simplicity.
-
+        
     return rt
 
 Additional interactions / Mass loss mechanisms:
 
 def _tdis(self, M):
-
-
+    
+    
     # Time scale for disruption.
     tdis = 2e3 * (5.1 / (self.Sigma_n * self.rho_n)) * (M / 10 ** 4) ** self.gamma_n # [Myrs] 
-
+    
     return tdis
 
 def _tshock(self, M, rh, RG):
-
+    
     Vc = 1.023 * self.Vc_func(RG) # [pc / Myrs] Velocity profile.
-
+    
     # Disk density decreases exponentially with the galactocentric distance.
     Sigma_disk = self.Sigma_disk0 * exp(- RG / self.Rd) # [Msun / pc ^2] Surface density. 
-
+    
     # Time scale for shocks.
     tshock = M * RG * 1e3 * Vc / (40 * pi * self.G * rh ** 3 * Sigma_disk ** 2) # [Myrs]
-
+    
     return tshock
 
 Then in the stellar mass, add
@@ -2233,21 +2233,21 @@ In future extension, the numer of elapsed relaxations will be used as an estimat
 - Nrlx_dot += 1 / trh if Nrlx <=1 else 0 # [1/Myr] Elapsed relaxation. Evolves up until tcc.
 - We change all dependences on t - tcc to Nrlx - 1, t / tcc to Nrlx and 1 / tcc to Nrlx_dot, for instance in balance functions, mass_segregation evolution
 - To extract core collapse, add an event in the ode solver.:
-
+    
     def core_collapse_event(t, y):
         # Stops when the elapsed number of relaxation times = 1
         return y[6] - 1.0
-
+ 
     core_collapse_event.terminal = False  # Do not stop integration; we just want to record the time
     core_collapse_event.direction = 1  # Trigger when Nrel increases through 1
-
+    
     sol = solve_ivp(self._odes, [0, self.tend], y, method=self.integration_method, t_eval=self.t_eval, events=[mass_event, particle_event, tidal_overflow_event, core_collapse_event, second_core_collapse_event], rtol=self.rtol, atol=self.atol, dense_output=self.dense_output, vectorized=self.vectorize) 
-
+    
     # Estimate core collapse
     self.tcc = None
     if sol.t_events[3].size > 0:
         self.tcc = sol.t_events[3][0] # [Myr]
-
+    
 Of course, in this scenario we do not need self.trh0, self.Ntrh, self.psi0. We can extract however later a constant as
 self.ntrh = self.tcc / self.trh0 and study the spread that this self.ntrh has as opposed to a fixed value.  
 
@@ -2261,7 +2261,7 @@ Dictionary for galactic environment:
 A simple approach is to define
 
 def _integral_B(self, b, X):
-
+   
     # Define the integrand
     def integrand(z):
         denom = (1 + z) ** 1.5 * sqrt(1 - b + z)
@@ -2302,7 +2302,7 @@ def _Chabrier_IMF(self, segment_types, a_slopes, m_breaks):
     for i, seg_type in enumerate(segment_types):
         if seg_type not in valid_types:
             raise ValueError(f"Invalid segment type '{seg_type}' at index {i}. Must be 'lognormal' or 'powerlaw'")
-
+    
         # Validate parameter structure based on segment type
         if seg_type == 'lognormal':
             if not isinstance(a_slopes[i], tuple) or len(a_slopes[i]) != 3:
@@ -2312,40 +2312,40 @@ def _Chabrier_IMF(self, segment_types, a_slopes, m_breaks):
                 raise ValueError(f"Powerlaw segment at index {i} requires numeric slope, got {a_slopes[i]}")
 
     def chabrier_lognormal_pdf(m, A, log10_mc, sigma):
-
+        
         return (A / (m * log(10) * sigma * sqrt(2 * pi))) * exp(-0.5 * ((log10(m) - log10_mc) / sigma) ** 2)
 
     def chabrier_lognormal_integral(m_low, m_high, A, log10_mc, sigma):
-
+       
         from scipy.integrate import quad
-
+    
         def dNdm(m):
             return (A / (m * log(10) * sigma * sqrt(2 * pi))) * exp(-0.5 * ((log10(m) - log10_mc) / sigma) ** 2)
-
+    
         def mass_density(m):
             return m * dNdm(m)
-
+    
         num_integral, _ = quad(dNdm, m_low, m_high)
         mass_integral, _ = quad(mass_density, m_low, m_high)
-
+    
         return num_integral, mass_integral
 
     def powerlaw_pdf(m, alpha, C):
-
+       
         return C * m ** alpha
 
     def powerlaw_integral(m_low, m_high, alpha, C):
-
+       
         def integrate_IMF(m_low, m_high, p):
             if p == -1:
                 return log(m_high / m_low)
             else:
                 return (m_high ** (p + 1) - m_low ** (p + 1)) / (p + 1)
-
+    
         # For power-law ξ(m) = C * m^alpha
         num_integral = C * integrate_IMF(m_low, m_high, alpha)
         mass_integral = C * integrate_IMF(m_low, m_high, alpha + 1)
-
+    
         return num_integral, mass_integral
 
     # Calculate normalization constants for continuity
@@ -2354,12 +2354,12 @@ def _Chabrier_IMF(self, segment_types, a_slopes, m_breaks):
     # Ensure continuity at breakpoints
     for i in range(1, len(m_breaks) - 1):
         m_break = m_breaks[i]
-
+    
         # Get previous segment value at break point
         prev_type = segment_types[i-1]
         prev_params = a_slopes[i-1]
         prev_norm = normalization_constants[-1]
-
+    
         if prev_type == 'lognormal':
             A_prev, log10_mc_prev, sigma_prev = prev_params
             prev_value = chabrier_lognormal_pdf(m_break, A_prev * prev_norm, log10_mc_prev, sigma_prev)
@@ -2369,12 +2369,12 @@ def _Chabrier_IMF(self, segment_types, a_slopes, m_breaks):
             # For powerlaw: PDF(m) = C * m^alpha
             prev_value = prev_norm * (m_break ** alpha_prev)
             print(f"DEBUG: Break {i}: Previous segment (powerlaw) PDF at m={m_break}: {prev_value}")
-
-
+   
+    
         # Calculate required normalization for current segment
         curr_type = segment_types[i]
         curr_params = a_slopes[i]
-
+    
         if curr_type == 'lognormal':
             A_curr, log10_mc_curr, sigma_curr = curr_params
             curr_base_value = chabrier_lognormal_pdf(m_break, A_curr, log10_mc_curr, sigma_curr)
@@ -2385,9 +2385,9 @@ def _Chabrier_IMF(self, segment_types, a_slopes, m_breaks):
             curr_base_value = m_break ** alpha_curr
             normalization_constants.append(prev_value / curr_base_value)
             print(f"DEBUG: Break {i}: Current segment (powerlaw) base PDF: {curr_base_value}")
-
+        
         print(f"DEBUG: Break {i}: Normalization constant for segment {i}: {normalization_constants[-1]}")
-
+    
     print(f"DEBUG: Final normalization constants: {normalization_constants}")
 
     # Integrate over all segments
@@ -2400,7 +2400,7 @@ def _Chabrier_IMF(self, segment_types, a_slopes, m_breaks):
         seg_type = segment_types[i]
         params = a_slopes[i]
         C_i = normalization_constants[i]
-
+    
         if seg_type == 'lognormal':
             A, log10_mc, sigma = params
             num_int, mass_int = chabrier_lognormal_integral(m_low, m_high, A * C_i, log10_mc, sigma)
@@ -2411,7 +2411,7 @@ def _Chabrier_IMF(self, segment_types, a_slopes, m_breaks):
             num_int, mass_int = powerlaw_integral(m_low, m_high, alpha, C_i)
             total_number += num_int
             total_mass += mass_int
-
+            
     return total_mass / total_number
 
 
