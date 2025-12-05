@@ -331,7 +331,10 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
                         k1, m1, S1, gen1 = k3, m3, S3, gen3
                         k2, m2, S2, gen2 = k4, m4, S4, gen4
                         a = a2
-                        e = np.sqrt(random())
+                        Rs = 4 * (m1 + m2) / c ** 2
+                        ell_cap = (Rs / a) ** (5 / 14)
+
+                    e = np.sqrt(1 - ell_cap ** 2)
                     merger_type = MergerOutcome.GWCaptureBB
                     break
 
