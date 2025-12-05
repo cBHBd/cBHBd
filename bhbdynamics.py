@@ -449,7 +449,7 @@ def _format_output(bbh, output_dataframe):
     bbh = pd.DataFrame(bbh)
     colnames = ["t_merge", "t_sim", "m1", "m2", "e", "M0", "merger_type", "t_fin", "rh", "v_kick", "v_esc",
                 "chi_f", "S1", "S2", "Z", "a", "gen", "Mbh"]
-    assert (bbh.columns.values == colnames).all(), f"Wrong column names in output"
+    assert len(bbh) == 0 or (bbh.columns.values == colnames).all(), f"Wrong column names in output"
     if len(bbh) == 0:
         bbh = pd.DataFrame(columns=colnames)
 
