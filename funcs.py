@@ -12,7 +12,7 @@ class MergerOutcome:
     GWCaptureBS = "gw_capture_bs"
     GWCaptureBB = "gw_capture_bb"
     Ejected = "ejected"
-    DirectInspiral = "direct_inspiral"
+    GWCaptureDirect = "gw_capture_direct"
 
     @staticmethod
     def get_outcomes():
@@ -20,7 +20,7 @@ class MergerOutcome:
                 MergerOutcome.GWCaptureBS,
                 MergerOutcome.GWCaptureBB,
                 MergerOutcome.Ejected,
-                MergerOutcome.DirectInspiral]
+                MergerOutcome.GWCaptureDirect]
 
 
 def get_sync_time(cbh, fbh0, Mcl_i, M3ej, t):
