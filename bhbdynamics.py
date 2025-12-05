@@ -316,17 +316,22 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
                     raise RuntimeError(f"Error in {k4=}, {m4=} determination ({k1=}, {k2=}, {k3=}, {kmin=}, {kmin4b=})")
 
                 # Form the second BBH at the hard-soft boundary
-                a2 = G_AU_MSUN_KMS * m1 * m2 / (2 * mmean * vd ** 2)  # In AU if sigma in Km/s and M in solar masses
-                assert a2 >= a, "a > a2"
-                a_r = a / a2
+                a2 = G_AU_MSUN_KMS * m3 * m4 / (2 * mmean * vd ** 2)  # In AU if sigma in Km/s and M in solar masses
+                a_r = a2 / a if a2 >= a else a / a2
+                a_min = min(a, a2)
                 mmeanbb = (m1 + m2 + m3 + m4) / 4
-                pcapbb = 0.034 * (mmeanbb / 20) ** (5 / 7) * (a / 0.1) ** (-5 / 7) * (
+                pcapbb = 0.034 * (mmeanbb / 20) ** (5 / 7) * (a_min / 0.1) ** (-5 / 7) * (
                         1 + (a_r / 8.6) ** 2) ** -0.83 if a_r < 500 else 0  # (Marín Pina et al. 2025)
                 Nbb = 0.3 * (Nbh / 1e2) ** (-1 / 3)
                 pbb = 1 - np.exp(-pcapbb * Nbb)
 
                 # Check for captures in binary-binary encounters
                 if pbb >= random():
+                    if a2 < a:  # Handle the edge case that the second BBH is smaller
+                        k1, m1, S1, gen1 = k3, m3, S3, gen3
+                        k2, m2, S2, gen2 = k4, m4, S4, gen4
+                        a = a2
+                        e = np.sqrt(random())
                     merger_type = MergerOutcome.GWCaptureBB
                     break
 
@@ -392,11 +397,11 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
             N3ej += 1
 
             # Set such that the total BH mass at that time is the same as in the cluster model
-            tform = t + tfric + t_gw
+            t_form = t + tfric + t_gw
             bhv[k1, 0] = np.nan  # Remove one BH
             bhv[k2, 0] = m1 + m2  # Make a new BH (merger product)
             bhv[k2, 1] = chi_f  # New spin
-            bhv[k2, 2] = tform  # Reinclude merger product in core only after dynamical friction
+            bhv[k2, 2] = t_form  # Reinclude merger product in core only after dynamical friction
             bhv[k2, 3] = max(bhv[k1, 3], bhv[k2, 3]) + 1  # Increase the BH generation by one
 
         else:  # If the binary is ejected or the end product is ejected then remove members
