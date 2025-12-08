@@ -384,7 +384,8 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
 
         # Compute GW timescale
         R = (1 + 73 / 24 * e ** 2 + 37 / 96 * e ** 4)
-        t_gw = 5 * c ** 5 * a ** 4 * (1 - e ** 2) ** (7 / 2) / (64 * m1 * m2 * (m1 + m2) * R) * 58 / 365
+        t_gw = 5 * C_AU_YR ** 5 * a ** 4 * (1 - e ** 2) ** (7 / 2) / (
+                64 * G_AU_MSUN_YR ** 3 * m1 * m2 * (m1 + m2) * R)
 
         assert not np.isnan(t_gw), f"Error in {t_gw = }"
 
