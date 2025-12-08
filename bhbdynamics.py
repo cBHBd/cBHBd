@@ -58,6 +58,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
     G_AU_MSUN_KMS = 887.1278675
     G_AU_MSUN_YR = 4 * np.pi ** 2
     PC_TO_AU = 648000 / np.pi
+    C_AU_YR = 63198  # Speed of light in AU/yr
     c = 1e4  # Speed of light in units where M=M_sun, L=1AU, G=1
 
     # Cluster evolution
@@ -139,7 +140,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
         m_d[kmin] = np.nan
         k1 = np.nanargmin(np.abs(m_d - m1_t))
         m_d[kmin] = mbhmin
-        m1, S1, t1, gen1 = bhv[k1, 0], bhv[k1, 1], bhv[k1, 2], bhv[k1, 3]
+        m1, S1, gen1 = bhv[k1, 0], bhv[k1, 1], bhv[k1, 3]
         if k1 == kmin or np.isnan(m1):  # Raise exception if the primary is the lightest BH
             raise RuntimeError(f"Error in {k1=}, {m1=} determination")
 
@@ -152,7 +153,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
                 1 / (1 + alpha_2))
         k2 = np.nanargmin(np.abs(m_d - q_t * m1))
         m_d[k1] = m1
-        m2, S2, t2, gen2 = bhv[k2, 0], bhv[k2, 1], bhv[k2, 2], bhv[k2, 3]
+        m2, S2, gen2 = bhv[k2, 0], bhv[k2, 1], bhv[k2, 3]
         if k2 == k1 or np.isnan(m2):  # Raise exception if the primary and the secondary are the same BH
             raise RuntimeError(f"Error in {k2=}, {m2=} determination")
 
@@ -254,8 +255,8 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
                     k2, k3 = k3, k2
                 if bhv[k2, 0] > bhv[k1, 0]:  # Force that the primary is always the most massive
                     k1, k2 = k2, k1
-                m1, S1, t1, gen1 = bhv[k1, 0], bhv[k1, 1], bhv[k1, 2], bhv[k1, 3]
-                m2, S2, t2, gen2 = bhv[k2, 0], bhv[k2, 1], bhv[k2, 2], bhv[k2, 3]
+                m1, S1, gen1 = bhv[k1, 0], bhv[k1, 1], bhv[k1, 3]
+                m2, S2, gen2 = bhv[k2, 0], bhv[k2, 1], bhv[k2, 3]
 
             # Compute the recoil of the binary and interloper
             vbin = np.sqrt(dE * Ebin * (2 / (m1 + m2)) * (m3 / (m1 + m2 + m3)))  # In km/s
@@ -293,7 +294,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
                 m_d[kmin4b] = np.nan
                 k3 = np.nanargmin(np.abs(m_d - m3_t))
                 m_d[kmin4b] = mbhmin4b
-                m3, S3, t3, gen3 = bhv[k3, 0], bhv[k3, 1], bhv[k3, 2], bhv[k3, 3]
+                m3, S3, gen3 = bhv[k3, 0], bhv[k3, 1], bhv[k3, 3]
                 if k3 == kmin or k3 == k1 or k3 == k2 or np.isnan(m3):  # Check that we don't select the same BH twice
                     raise RuntimeError(f"Error in {k3=}, {m3=} determination  ({k1=}, {k2=}, {kmin=}, {kmin4b=})")
 
@@ -310,7 +311,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
                 m_d[k1] = m1
                 m_d[k2] = m2
                 m_d[k3] = m3
-                m4, S4, t4, gen4 = bhv[k4, 0], bhv[k4, 1], bhv[k4, 2], bhv[k4, 3]
+                m4, S4, gen4 = bhv[k4, 0], bhv[k4, 1], bhv[k4, 3]
                 if k4 == k1 or k4 == k2 or k4 == k3 or np.isnan(m4):  # Check that we don't select the same BH twice
                     print(f"{np.abs(m_d - q_t * m3) = }")
                     raise RuntimeError(f"Error in {k4=}, {m4=} determination ({k1=}, {k2=}, {k3=}, {kmin=}, {kmin4b=})")
@@ -322,7 +323,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
                 mmeanbb = (m1 + m2 + m3 + m4) / 4
                 pcapbb = 0.034 * (mmeanbb / 20) ** (5 / 7) * (a_min / 0.1) ** (-5 / 7) * (
                         1 + (a_r / 8.6) ** 2) ** -0.83 if a_r < 500 else 0  # (Marín Pina et al. 2025)
-                Nbb = 0.3 * (Nbh / 1e2) ** (-1 / 3)
+                Nbb = 0.3 * (Nbh_core / 1e2) ** (-1 / 3)
                 pbb = 1 - np.exp(-pcapbb * Nbb)
 
                 # Check for captures in binary-binary encounters
@@ -340,7 +341,9 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
 
             # IN-CLUSTER INSPIRALS
             R = (1 + 73 / 24 * e ** 2 + 37 / 96 * e ** 4)
-            t_gw = 5 * c ** 5 * a ** 4 * (1 - e ** 2) ** (7 / 2) / (64 * m1 * m2 * (m1 + m2) * R) * 58 / 365
+            t_gw = 5 * C_AU_YR ** 5 * a ** 4 * (1 - e ** 2) ** (7 / 2) / (
+                    64 * G_AU_MSUN_YR ** 3 * m1 * m2 * (m1 + m2) * R)
+
             if t_gw < t3:
                 merger_type = MergerOutcome.InClusterInspiral
                 break
