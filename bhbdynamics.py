@@ -313,7 +313,6 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
                 m_d[k3] = m3
                 m4, S4, gen4 = bhv[k4, 0], bhv[k4, 1], bhv[k4, 3]
                 if k4 == k1 or k4 == k2 or k4 == k3 or np.isnan(m4):  # Check that we don't select the same BH twice
-                    print(f"{np.abs(m_d - q_t * m3) = }")
                     raise RuntimeError(f"Error in {k4=}, {m4=} determination ({k1=}, {k2=}, {k3=}, {kmin=}, {kmin4b=})")
 
                 # Form the second BBH at the hard-soft boundary
