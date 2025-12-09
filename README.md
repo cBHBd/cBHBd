@@ -4,13 +4,15 @@
 1) ᴄʟᴜsᴛᴇʀBH: Fast code for the evolution of a star cluster with black holes in a tidal field
 2) BHBᴅʏɴᴀᴍɪᴄs: Fast code for population synthesis of binary black hole mergers in a star cluster
 
-Please cite as follows when using ᴄBHBᴅ:
-
-**TODO**
+If you use ᴄBHBᴅ in any publication, please cite it as follows:
+> ᴄBHBᴅ (Antonini & Gieles [2020](https://ui.adsabs.harvard.edu/abs/2020MNRAS.492.2936A/abstract); Antonini et al. [2023](https://ui.adsabs.harvard.edu/abs/2023MNRAS.522..466A/abstract)), with the updates of Fronimos Pouliasis et al. (2025)
 
 ## Installation
 
-Just drop the ᴄBHBᴅ package in the folder where your scripts are. 
+Just drop the ᴄBHBᴅ package in the folder where your scripts are, no installation needed. If you are `cd`'d in that directory, run 
+```
+git clone https://github.com/cBHBd/cBHBd
+```
 
 ## Running ᴄʟᴜsᴛᴇʀBH
 You can run ᴄʟᴜsᴛᴇʀBH as
