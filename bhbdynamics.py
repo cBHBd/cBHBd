@@ -352,7 +352,8 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
             Nst = (Mcl - Mbh) / mst
             lnDelta = max(1, np.log(0.02 * Nst))
             lnDelta2 = max(1, np.log(0.02 * Nbh))
-            rhBH = rh * (Mbh / Mcl) ** (3 / 5) * (mbhmean / mst * lnDelta2 / lnDelta) ** (2 / 5)
+            rhBH = rh * (Mbh / Mcl) ** (3 / 5) * (mbhmean / mst * lnDelta2 / lnDelta) ** (2 / 5) if Nbh_core >= 40 \
+                else rh * (mbhmean / mst) * Mbh / Mcl
             vdBH = np.sqrt(0.2 * G_AU_MSUN_KMS * Mbh / (rhBH * PC_TO_AU))  # Breen & Heggie (2012)
             nBH = 0.5 * Nbh / (4 / 3 * np.pi * rhBH ** 3)  # Number density of BHs within the rhBH
             vc = np.sqrt(G_AU_MSUN_KMS * m1 * m2 * (m1 + m2 + mbhmean) / (mbhmean * (m1 + m2) * a))
