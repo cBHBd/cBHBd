@@ -1,5 +1,7 @@
 # ᴄBHBᴅ
-ᴄBHBᴅ is composed of two codes
+A fast code for simulating star clusters and black hole dynamics.
+
+ᴄBHBᴅ is composed of two coupled codes
 
 1) ᴄʟᴜsᴛᴇʀBH: Fast code for the evolution of a star cluster with black holes in a tidal field
 2) BHBᴅʏɴᴀᴍɪᴄs: Fast code for population synthesis of binary black hole mergers in a star cluster
