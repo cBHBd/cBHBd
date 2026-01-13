@@ -11,7 +11,7 @@ from cBHBd.clusterbh import clusterBH
 from cBHBd.funcs import MergerOutcome
 
 
-def run_model(t_fin, Mcl0, Z, Z_file, rhoh0, rg=8, output_dataframe=True, verbose=True, seed=None):
+def run_model(t_fin, Mcl0, Z, Z_file, rhoh0, rg=8, output_dataframe=True, verbose=True, seed=None, **kwargs):
     """
     Run a cluster model using cBHBd. Returns the properties of all the BBH mergers in the cluster.
 
@@ -24,11 +24,12 @@ def run_model(t_fin, Mcl0, Z, Z_file, rhoh0, rg=8, output_dataframe=True, verbos
     :param output_dataframe: If True, return is a pandas dataframe, otherwise a list
     :param verbose: If True, print extra output.
     :param seed: Seed for random number generator. Use None to get a random seed.
+    :param kwargs: Additional arguments to pass to clusterBH.
     :return: the properties of all the BBH mergers in the cluster.
     """
 
     try:
-        return _run_model(t_fin, Mcl0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
+        return _run_model(t_fin, Mcl0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed, **kwargs)
     except Exception as err:
         print("Error in model with", flush=True)
         print(f"\t Mass = {Mcl0} M_sun", flush=True)
@@ -40,7 +41,7 @@ def run_model(t_fin, Mcl0, Z, Z_file, rhoh0, rg=8, output_dataframe=True, verbos
         raise err
 
 
-def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed):
+def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed, **kwargs):
     t_fin *= 1e9  # Convert time to year
 
     if verbose:
@@ -74,7 +75,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed)
     mmean = imf.m_integrate(mmin, mmax)[0] / imf.integrate(mmin, mmax)[0]
 
     cbh = clusterBH(M0 / mmean, rhoh0, m0=mmean, Z=Z, ssp=True, kick=kick, dtout=None,
-                    dense_output=True, tend=15e3, Mbh_min=0, rg=rg)
+                    dense_output=True, tend=15e3, Mbh_min=0, rg=rg, **kwargs)
 
     # Build array with BH properties for retained BHs
     bhv = []
