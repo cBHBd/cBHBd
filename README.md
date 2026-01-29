@@ -11,7 +11,13 @@ If you use ᴄBHBᴅ in any publication, please cite it as follows:
 
 ## Installation
 
-Just drop the ᴄBHBᴅ package in the folder where your scripts are, no installation needed. If you are `cd`'d in that directory, run 
+The cBHBd package can be installed directly from this repository using pip:
+```
+python -m pip install git+https://github.com/cBHBd/cBHBd.git
+```
+All required dependencies will be installed automatically.
+
+You can also simply download the ᴄBHBᴅ package source from this repository and install or place it into your path:
 ```
 git clone https://github.com/cBHBd/cBHBd
 ```

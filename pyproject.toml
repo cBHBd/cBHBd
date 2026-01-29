@@ -1,0 +1,43 @@
+[project]
+name = "cBHBd"
+version = "1.0.0"
+description = "A fast code for simulating star cluster and black hole dynamics"
+authors = [
+    {name = "Daniel Marín Pina", email = "daniel.marin@uni-heidelberg.de"},
+    {name = "Fabio Antonini", email = "AntoniniF@cardiff.ac.uk"},
+    {name = "Fotis Fronimos", email = "fotisfronimos@icc.ub.edu"},
+    {name = "Mark Gieles", email = "mgieles@gmail.com"},
+    {name = "Nolan Dickson", email = "nolan.dickson@smu.ca"},
+    {name = "Vincent Henault-Brunet", email= "Vincent.Henault@smu.ca"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["clusterbh", "bhbdynamics"]
+license = "BSD-3-Clause"
+dependencies = [
+    "scipy",
+    "numpy",
+    "astropy",
+    "pandas",
+    "initial-mass-function",
+    "astro-ssptools"
+]
+
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "License :: OSI Approved :: BSD License",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+[project.urls]
+repository = "https://github.com/cBHBd/cBHBd"
+# documentation = "https://cBHBd.readthedocs.org"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cBHBd"]
