@@ -20,7 +20,7 @@ warnings.simplefilter("ignore", category=RuntimeWarning)
 """
 
 
-class clusterBH:
+class ClusterBH:
     def __init__(self, N, rhoh, **kwargs):
         """
         Initialize the star cluster model.
@@ -39,7 +39,7 @@ class clusterBH:
         self.N = N  # Initial number of stars.
         self.m0 = None  # [Msun] Initial average mass. If unspecified, it is computed directly from the IMF. The computation is skipped if the user inserts it as argument.
         self.rg = 8  # [kpc] Galactocentric distance of the cluster. For eccentric orbits, consider it as a(1 - e) where a is the semi-major axis, e is eccentricity.
-        self.Z = 0.0002  # Metalλicity of the cluster. Default to low-metallicity.
+        self.Z = 0.0002  # Metallicity of the cluster. Default to low-metallicity.
         self.W0 = 7  # Central potential value.
         self.eta0 = 3.  # Initial value for mass segregation. For a homologous distribution of stars, set it equal to 3.
         self.Nrlx0 = 0  # Numer of inital elapsed relaxatio.

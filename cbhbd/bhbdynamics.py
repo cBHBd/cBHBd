@@ -6,9 +6,9 @@ import pandas as pd
 from imf.imf import Kroupa
 from numpy.random import random
 
-import cBHBd.funcs
-from cBHBd.clusterbh import clusterBH
-from cBHBd.funcs import MergerOutcome
+import cbhbd.funcs
+from cbhbd.clusterbh import ClusterBH
+from cbhbd.funcs import MergerOutcome
 
 
 def run_model(t_fin, Mcl0, Z, Z_file, rhoh0, rg=8, output_dataframe=True, verbose=True, seed=None, **kwargs):
@@ -74,7 +74,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
     imf = Kroupa(mmin=mmin, mmax=mmax)
     mmean = imf.m_integrate(mmin, mmax)[0] / imf.integrate(mmin, mmax)[0]
 
-    cbh = clusterBH(M0 / mmean, rhoh0, m0=mmean, Z=Z, ssp=True, kick=kick, dtout=None,
+    cbh = ClusterBH(M0 / mmean, rhoh0, m0=mmean, Z=Z, ssp=True, kick=kick, dtout=None,
                     dense_output=True, tend=15e3, Mbh_min=0, rg=rg, **kwargs)
 
     # Build array with BH properties for retained BHs
@@ -121,8 +121,8 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
     alpha_samp = None
 
     while t <= t_fin:
-        m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = cBHBd.funcs.get_mbh_params(bhv, t)
-        alpha_samp = cBHBd.funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
+        m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = cbhbd.funcs.get_mbh_params(bhv, t)
+        alpha_samp = cbhbd.funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
 
         if Nbh_core < 4:
             if len(bhv[~np.isnan(bhv[:, 0])]) < 4:
@@ -188,8 +188,8 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
         merger_type = None
 
         while not lastBH:
-            m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = cBHBd.funcs.get_mbh_params(bhv, t)
-            alpha_samp = cBHBd.funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
+            m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = cbhbd.funcs.get_mbh_params(bhv, t)
+            alpha_samp = cbhbd.funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
             Nbh = Nbh0 - N3ej
 
             if Nbh_core < 4:
@@ -245,8 +245,8 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
                 break
 
             # Exchanges
-            Ppres = cBHBd.funcs.prob_esc(m1, m2, m3)
-            Pex2 = cBHBd.funcs.prob_esc(m1, m3, m2)
+            Ppres = cbhbd.funcs.prob_esc(m1, m2, m3)
+            Pex2 = cbhbd.funcs.prob_esc(m1, m3, m2)
             exchange_outcomes = ["preservation", "exchange_1", "exchange_2"]
             exchange_outcome = np.random.choice(exchange_outcomes, p=[Ppres, max(0.0, 1 - Pex2 - Ppres), Pex2])
             if exchange_outcome != "preservation":
@@ -273,7 +273,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
                 N3ej += 1
                 M3ej += m3
                 bhv[k3, 0] = np.nan
-                m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = cBHBd.funcs.get_mbh_params(bhv, t)
+                m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = cbhbd.funcs.get_mbh_params(bhv, t)
 
             # Ejection of binaries
             if vbin > v_esc:
@@ -392,12 +392,12 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
         assert not np.isnan(t_gw), f"Error in {t_gw = }"
 
         # Compute GW recoil kick and spins
-        v_kick, chi_f = cBHBd.funcs.recoil(m1, m2, S1, S2)
+        v_kick, chi_f = cbhbd.funcs.recoil(m1, m2, S1, S2)
 
         t_sim = t
         if v_kick < v_esc and merger_type != MergerOutcome.Ejected:  # If the binary is retained, form a merger product BH
             # Recompute hardening timescale if retained
-            t = cBHBd.funcs.get_sync_time(cbh, fbh0, M0, M3ej - m1 - m2, t)
+            t = cbhbd.funcs.get_sync_time(cbh, fbh0, M0, M3ej - m1 - m2, t)
 
             rin = rh * np.sqrt((v_esc ** 2 / (v_esc ** 2 - v_kick ** 2)) ** 2 - 1)
             tfric = 7.6e8 * (rin / 1.) ** 2 * (vd / 200.) * (10. / (m1 + m2))
@@ -417,7 +417,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
             if M3ej > fbh0 * M0:
                 lastBH = True
 
-            t = cBHBd.funcs.get_sync_time(cbh, fbh0, M0, M3ej, t)
+            t = cbhbd.funcs.get_sync_time(cbh, fbh0, M0, M3ej, t)
 
             N3ej += 2
 
@@ -439,7 +439,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
                     "m2": m2,  # 3 Mass of secondary BH [Msun]
                     "e": e,  # 4 Eccentricity of binary just before GW radiation takes over
                     "M0": M0,  # 5 Initial cluster mass [Msun]
-                    "merger_type": merger_type,  # 6 Merger type [cBHBd.funcs.MergerOutcome]
+                    "merger_type": merger_type,  # 6 Merger type [cbhbd.funcs.MergerOutcome]
                     "t_fin": t_fin,  # 7 Look-back time of formation [yr]
                     "rh": rh,  # 8 Half-mass radius at t_sim [pc]
                     "v_kick": v_kick,  # 9 Recoil kick [km/s]
