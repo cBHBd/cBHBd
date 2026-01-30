@@ -2102,7 +2102,7 @@ class ClusterBH:
 # c = clusterBH(1e6, 1e4, galactic_model='NFW', tidal_spiralling=True) # Evolves a cluster with shrinking galactocentric distance inside a different galactic potential.
 # c = clusterBH(1e6, 1e4, BH=False) # Evolves a cluster with no BHs.
 #######################################################################################################################################################################################################################################################
-"""
+r"""
 
 Use:
 - An isolated cluster can be described with tidal=False. It can have stellar ejections or not.
