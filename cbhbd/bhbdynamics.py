@@ -258,6 +258,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
                     k1, k2 = k2, k1
                 m1, S1, gen1 = bhv[k1, 0], bhv[k1, 1], bhv[k1, 3]
                 m2, S2, gen2 = bhv[k2, 0], bhv[k2, 1], bhv[k2, 3]
+                m3, S3, gen3 = bhv[k3, 0], bhv[k3, 1], bhv[k3, 3]
 
             # Compute the recoil of the binary and interloper
             vbin = np.sqrt(dE * Ebin * (2 / (m1 + m2)) * (m3 / (m1 + m2 + m3)))  # In km/s
