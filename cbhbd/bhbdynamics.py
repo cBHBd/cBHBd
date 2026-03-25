@@ -43,6 +43,8 @@ def run_model(t_fin, Mcl0, Z, Z_file, rhoh0, rg=8, output_dataframe=True, verbos
 
 def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed, **kwargs):
     t_fin *= 1e9  # Convert time to year
+    MAX_TEND = 15e3
+    assert (t_fin <= MAX_TEND * 1e6), f"Can't run a model for more than {MAX_TEND / 1e3} Gyr"
 
     if verbose:
         print("Generating new model with")
@@ -76,6 +78,8 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
 
     cbh = ClusterBH(M0 / mmean, rhoh0, m0=mmean, Z=Z, ssp=True, kick=kick, dtout=None,
                     dense_output=True, tend=15e3, Mbh_min=0, rg=rg, **kwargs)
+
+    t_end = min(t_fin, cbh.t.max() * 1e9)
 
     # Build array with BH properties for retained BHs
     bhv = []
@@ -120,7 +124,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
 
     alpha_samp = None
 
-    while t <= t_fin:
+    while t <= t_end:
         m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = cbhbd.funcs.get_mbh_params(bhv, t)
         alpha_samp = cbhbd.funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
 
@@ -161,7 +165,7 @@ def _run_model(t_fin, M0, Z, Z_file, rhoh0, rg, verbose, output_dataframe, seed,
         assert m2 <= m1, "The primary should always be the most massive"
 
         # Update cluster properties
-        if t / 1e6 > cbh.tend:
+        if t > t_end:
             return _format_output(bbh, output_dataframe)
         rh = cbh.rh_interp(t / 1e9)
         Mcl = cbh.M_interp(t / 1e9)
