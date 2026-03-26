@@ -1,4 +1,5 @@
 # ᴄBHBᴅ
+
 A fast code for simulating star clusters and black hole dynamics.
 
 ᴄBHBᴅ is composed of two coupled codes
@@ -7,42 +8,54 @@ A fast code for simulating star clusters and black hole dynamics.
 2) BHBᴅʏɴᴀᴍɪᴄs: Fast code for population synthesis of binary black hole mergers in a star cluster
 
 If you use ᴄBHBᴅ in any publication, please cite it as follows:
-> ᴄBHBᴅ (Antonini & Gieles [2020](https://ui.adsabs.harvard.edu/abs/2020MNRAS.492.2936A/abstract); Antonini et al. [2023](https://ui.adsabs.harvard.edu/abs/2023MNRAS.522..466A/abstract)), with the updates of Fronimos Pouliasis et al. (2025)
+> ᴄBHBᴅ (Antonini & Gieles [2020](https://ui.adsabs.harvard.edu/abs/2020MNRAS.492.2936A/abstract); Antonini et
+> al. [2023](https://ui.adsabs.harvard.edu/abs/2023MNRAS.522..466A/abstract)), with the updates of Fronimos Pouliasis et
+> al. (2025)
 
 ## Installation
 
 The cBHBd package can be installed directly from this repository using pip:
+
 ```
 python -m pip install git+https://github.com/cBHBd/cBHBd.git
 ```
+
 All required dependencies will be installed automatically.
 
 You can also simply download the ᴄBHBᴅ package source from this repository and install or place it into your path:
+
 ```
 git clone https://github.com/cBHBd/cBHBd
 ```
 
 ## Running ᴄʟᴜsᴛᴇʀBH
-You can run ᴄʟᴜsᴛᴇʀBH as
-```
-import cBHBd.clusterbh
 
-cBHBd.clusterbh.clusterBH(N, rhoh)
+You can run ᴄʟᴜsᴛᴇʀBH as
+
 ```
-with the following arguments: 
+import cbhbd.clusterbh
+
+cbhbd.clusterbh.clusterBH(N, rhoh)
+```
+
+with the following arguments:
+
 - `N`: Initial number of stars
 - `rhoh`: Half-mass density [Msun/pc^3]
 - `kwargs`: Additional parameters to override defaults (see code comments)
 
-
 ## Running BHBᴅʏɴᴀᴍɪᴄs
-You can run BHBᴅʏɴᴀᴍɪᴄs as
-```
-import cBHBd.bhbdynamics
 
-cBHBd.bhbdynamics.run_model(t_fin, Mcl0, Z, Z_file, rhoh0)
+You can run BHBᴅʏɴᴀᴍɪᴄs as
+
 ```
-with the following arguments: 
+import cbhbd.bhbdynamics
+
+cbhbd.bhbdynamics.run_model(t_fin, Mcl0, Z, Z_file, rhoh0)
+```
+
+with the following arguments:
+
 - `t_fin`: Final time of the simulation [Gyr]
 - `Mcl0`: Initial mass of the cluster [Msun]
 - `Z`: Metallicity
