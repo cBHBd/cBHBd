@@ -20,7 +20,7 @@ warnings.simplefilter("ignore", category=RuntimeWarning)
 """
 
 
-class ClusterBH:
+class clusterBH:
     def __init__(self, N, rhoh, **kwargs):
         """
         Initialize the star cluster model.
@@ -55,6 +55,11 @@ class ClusterBH:
         self.t_bhcreation = 8  # [Myr] Time required to create all BHs.
         self.N_points = 500  # Number of points used for even spacing.
         self.Mbh0, self.mbh0 = 1e-99, 1e-89  # [Msun, Msun]. We set the BH masses equal to 0. They are later extracted from the BHMF. If not, the cluster is evolved without BHs.
+
+        # IMBH seeds
+        self.MprogIMBH = 0.0
+        self.MIMBH = 0.0
+        self.NIMBH = 0
 
         # Model parameters.
         self.mns = 1.4  # [Msun] Mass of Neutron Stars (NS).
@@ -735,8 +740,8 @@ class ClusterBH:
         # The user can either specify the initial average mass beforehand, or it is extracted from the IMF.
         # If m0 is specified in the beginning, the IMF must be well defined so that it matches.
         if self.m0 is None:
-            self.m0 = self._initial_average_mass(self.a_slopes,
-                                                 self.m_breaks)  # [Msun] Average mass obtained for this particular IMF.
+            self.m0 = initial_average_mass(self.a_slopes,
+                                           self.m_breaks)  # [Msun] Average mass obtained for this particular IMF.
 
         self.FeH = log10(self.Z / self.Zsolar)  # Metallicity in solar units.
 
@@ -787,7 +792,8 @@ class ClusterBH:
 
             # Implement kicks, if activated, for this IMF, number of stars, with such metallicity, central escape velocity and BHMF conditions.
             self.ibh = ssptools.InitialBHPopulation.from_powerlaw(self.m_breaks, self.a_slopes, self.nbins, self.FeH,
-                                                                  N0=N, vesc=self.vesc0, natal_kicks=self.kick,
+                                                                  N0=N - self.MprogIMBH / self.m0, vesc=self.vesc0,
+                                                                  natal_kicks=self.kick,
                                                                   **self.ibh_kwargs)
             self.sev_rates = ssptools.LuminousEvMassLoss(self.ibh.IMF,
                                                          self.FeH)  # Provides rates of changes for the stellar population for a given IMF and metallicity.
@@ -795,18 +801,24 @@ class ClusterBH:
 
             # Now handle BH population only if self.BH is True
             if self.BH:
-                self.Mbh0 = self.ibh.Mtot  # [Msun] Expected initial mass of BHs.
+                self.Mbh0 = self.ibh.Mtot + self.MIMBH  # [Msun] Expected initial mass of BHs.
                 self.f0 = self.Mbh0 / self.M0  # Initial fraction of BHs. Should be close to 0.06 for poor-metal clusters.
-                self.Nbh0 = self.ibh.Ntot  # Initial number of BHs.
+                self.Nbh0 = self.ibh.Ntot + self.NIMBH  # Initial number of BHs.
                 self.mbh0 = self.Mbh0 / self.Nbh0  # [Msun] Initial average BH mass.
                 self.mlo = self.ibh.m.min()  # [Msun] Minimum BH mass in the BHMF.
                 self.mup = self.ibh.m.max()  # [Msun] Maximum BH mass in the BHMF.
-                self.Mst_lost = self.ibh.Ms_lost  # [Msun] Mass of stars lost in order to form BHs.
+                self.Mst_lost = self.ibh.Ms_lost + self.MprogIMBH - self.MIMBH  # [Msun] Mass of stars lost in order to form BHs.
                 self.t_bhcreation = self.ibh.age  # [Myr] Time needed to form these astrophysical mass BHs.
+            else:
+                assert self.MprogIMBH == 0.0, "Can't have IMBH seeds with self.BH=False"
+                assert self.MIMBH == 0.0, "Can't have IMBH seeds with self.BH=False"
+                assert self.NIMBH == 0, "Can't have IMBH seeds with self.BH=False"
 
         # Handle non-SSP case (stellar evolution + BHs)
         else:
-
+            assert self.MprogIMBH == 0.0, "IMBH seeds are only implemented when using SSPTools"
+            assert self.MIMBH == 0.0, "IMBH seeds are only implemented when using SSPTools"
+            assert self.NIMBH == 0, "IMBH seeds are only implemented when using SSPTools"
             self.nu_factor = 0  # Factor that corrects solution for Mst, mst for the case of a different IMF that has similar upper part with Kroupa. Default to 0. Applied only if ssp are not used.
 
             # Check that this is not exactly a Kroupa IMF.
@@ -1049,73 +1061,6 @@ class ClusterBH:
 
         # Return the ratio of the two integrals.
         return r * integral1 / integral2
-
-    # Compute initial average mass.
-    def _initial_average_mass(self, a_slopes, m_breaks):
-        """
-        Calculates the initial average mass of stars based on a piecewise power-law IMF.
-
-        Parameters:
-        -----------
-        a_slopes : list of floats
-           Slopes of the IMF in different mass ranges. Each slope corresponds to a segment of the piecewise IMF.
-        m_breaks : list of floats
-           Breakpoints of the mass ranges [Msun]. The length of this list should be one more than `a_slopes`.
-
-        Returns:
-        --------
-        float
-         The average mass of stars calculated using the IMF and its normalization [Msun].
-
-        Notes:
-        ------
-        - This function integrates the IMF.
-        - It assumes the IMF is continuous across the mass breakpoints.
-        - Special handling is included for slopes to avoid division by zero.
-        """
-
-        def integrate_IMF(m_low, m_high, p):
-
-            if p == -1:  # Special case where p = -1 to avoid division by zero, should the user select such value.
-                return log(m_high / m_low)
-            else:
-                return (m_high ** (p + 1) - m_low ** (p + 1)) / (p + 1)
-
-        # Normalization constants to ensure continuity of the IMF.
-        c_values = [1.0]  # c1 = 1.0. First is irrelevant.
-        normalization_constants = []
-
-        # Calculate the rest of the c values based on slopes and mass breakpoints. This is for continuity.
-        for i in range(1, len(a_slopes)):
-            c_values.append(m_breaks[i] ** (a_slopes[i - 1] - a_slopes[
-                i]))  # Previous exponent minus current one, to compute the current prefactor.
-
-        # Compute the cumulative products to form the normalization_constants array. Ensures continuity.
-        for i in range(len(c_values) - 1):
-            normalization_constants.append(c_values[i] * c_values[
-                i + 1])  # For every prefactor, we need to take the product with the previous one. We have 2 breakpoints in 1 interval.
-
-        # The prefactors are dimensionless here, if a normalization to 1Msun is assumed in the power-laws.
-        normalization_constants.insert(0, c_values[0])  # First entry is 1.
-
-        # Set initial values to 0.
-        stellar_mass = 0
-        stellar_number = 0
-
-        # For every pair, compute the number of massess and stars.
-        for i, a in enumerate(a_slopes):
-            m_low = m_breaks[i]
-            m_high = m_breaks[i + 1]
-            c_i = normalization_constants[i]
-
-            # Compute numerator.
-            stellar_mass += c_i * integrate_IMF(m_low, m_high, a + 1)
-
-            # Compute denominator.
-            stellar_number += c_i * integrate_IMF(m_low, m_high, a)
-
-        # Calculate the average mass. A well defined IMF should have a nonzero denominator.
-        return stellar_mass / stellar_number  # [Msun]
 
     # Function to determine by how much the BHMF changes, given a particular mass loss.
     def _deplete_BHMF(self, M_eject, M_BH, N_BH):
@@ -2093,6 +2038,74 @@ class ClusterBH:
 
             # Writes data.
             numpy.savetxt(self.outfile, data, header=table_header, fmt="%12.5e", comments="")
+
+
+# Compute initial average mass.
+def initial_average_mass(a_slopes, m_breaks):
+    """
+    Calculates the initial average mass of stars based on a piecewise power-law IMF.
+
+    Parameters:
+    -----------
+    a_slopes : list of floats
+       Slopes of the IMF in different mass ranges. Each slope corresponds to a segment of the piecewise IMF.
+    m_breaks : list of floats
+       Breakpoints of the mass ranges [Msun]. The length of this list should be one more than `a_slopes`.
+
+    Returns:
+    --------
+    float
+     The average mass of stars calculated using the IMF and its normalization [Msun].
+
+    Notes:
+    ------
+    - This function integrates the IMF.
+    - It assumes the IMF is continuous across the mass breakpoints.
+    - Special handling is included for slopes to avoid division by zero.
+    """
+
+    def integrate_IMF(m_low, m_high, p):
+
+        if p == -1:  # Special case where p = -1 to avoid division by zero, should the user select such value.
+            return log(m_high / m_low)
+        else:
+            return (m_high ** (p + 1) - m_low ** (p + 1)) / (p + 1)
+
+    # Normalization constants to ensure continuity of the IMF.
+    c_values = [1.0]  # c1 = 1.0. First is irrelevant.
+    normalization_constants = []
+
+    # Calculate the rest of the c values based on slopes and mass breakpoints. This is for continuity.
+    for i in range(1, len(a_slopes)):
+        c_values.append(m_breaks[i] ** (a_slopes[i - 1] - a_slopes[
+            i]))  # Previous exponent minus current one, to compute the current prefactor.
+
+    # Compute the cumulative products to form the normalization_constants array. Ensures continuity.
+    for i in range(len(c_values) - 1):
+        normalization_constants.append(c_values[i] * c_values[
+            i + 1])  # For every prefactor, we need to take the product with the previous one. We have 2 breakpoints in 1 interval.
+
+    # The prefactors are dimensionless here, if a normalization to 1Msun is assumed in the power-laws.
+    normalization_constants.insert(0, c_values[0])  # First entry is 1.
+
+    # Set initial values to 0.
+    stellar_mass = 0
+    stellar_number = 0
+
+    # For every pair, compute the number of massess and stars.
+    for i, a in enumerate(a_slopes):
+        m_low = m_breaks[i]
+        m_high = m_breaks[i + 1]
+        c_i = normalization_constants[i]
+
+        # Compute numerator.
+        stellar_mass += c_i * integrate_IMF(m_low, m_high, a + 1)
+
+        # Compute denominator.
+        stellar_number += c_i * integrate_IMF(m_low, m_high, a)
+
+    # Calculate the average mass. A well defined IMF should have a nonzero denominator.
+    return stellar_mass / stellar_number  # [Msun]
 
 
 # Examples:

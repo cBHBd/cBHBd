@@ -19,7 +19,6 @@ dependencies = [
     "numpy",
     "astropy",
     "pandas",
-    "initial-mass-function",
     "astro-ssptools"
 ]
 

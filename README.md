@@ -59,7 +59,6 @@ with the following arguments:
 - `t_fin`: Final time of the simulation [Gyr]
 - `Mcl0`: Initial mass of the cluster [Msun]
 - `Z`: Metallicity
-- `Z_file`: Path to file with sampled BH masses and kicks, generated from `generate_metallicity_files.py`
 - `rhoh0`: Initial density within the half-mass radius [Msun/pc^3]
 - `rg`: Galactocentric radius [kpc]
 - `output_dataframe`: If `True`, return is a pandas dataframe, otherwise a list
