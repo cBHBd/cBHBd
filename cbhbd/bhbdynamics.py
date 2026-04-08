@@ -11,7 +11,8 @@ from cbhbd.funcs import MergerOutcome
 remnant_model = None
 
 
-def run_model(t_fin, Mcl0, Z, rhoh0, SN_model="rapid", rg=8, output_dataframe=True, verbose=True, seed=None, **kwargs):
+def run_model(t_fin, Mcl0, Z, rhoh0, SN_model="rapid", simple_remnant_model=True, rg=8, output_dataframe=True,
+              verbose=True, seed=None, **kwargs):
     """
     Run a cluster model using cBHBd. Returns the properties of all the BBH mergers in the cluster.
 
@@ -20,6 +21,7 @@ def run_model(t_fin, Mcl0, Z, rhoh0, SN_model="rapid", rg=8, output_dataframe=Tr
     :param Z: Metallicity
     :param rhoh0: Initial density within the half-mass radius [Msun/pc^3]
     :param SN_model: Model for the supernova explosion ["rapid" or "delay"]
+    :param simple_remnant_model: If True, use a simplified GW remnant model. If False, use the full NR GW remnant model.
     :param rg: Galactocentric radius [kpc]
     :param output_dataframe: If True, return is a pandas dataframe, otherwise a list
     :param verbose: If True, print extra output.
@@ -29,7 +31,8 @@ def run_model(t_fin, Mcl0, Z, rhoh0, SN_model="rapid", rg=8, output_dataframe=Tr
     """
 
     try:
-        return _run_model(t_fin, Mcl0, Z, rhoh0, SN_model, rg, verbose, output_dataframe, seed, **kwargs)
+        return _run_model(t_fin, Mcl0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose, output_dataframe, seed,
+                          **kwargs)
     except Exception as err:
         print("Error in model with", flush=True)
         print(f"\t Mass = {Mcl0} M_sun", flush=True)
@@ -59,7 +62,7 @@ def get_aux_data(bhv, cbh, t_fin):
     return aux_data
 
 
-def _run_model(t_fin, M0, Z, rhoh0, SN_model, rg, verbose, output_dataframe, seed, **kwargs):
+def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose, output_dataframe, seed, **kwargs):
     global remnant_model
     t_fin *= 1e9  # Convert time to year
     t_fin0 = t_fin
@@ -443,8 +446,11 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, rg, verbose, output_dataframe, see
         assert not np.isnan(t_gw), f"Error in {t_gw = }"
 
         # Compute GW recoil kick and spins
-        if remnant_model is None:
-            remnant_model = cbhbd.remnant.RemnantModel()  # TODO: By default, use simple remnant model
+        load_remnant_model = remnant_model is None
+        load_remnant_model |= simple_remnant_model and isinstance(remnant_model, cbhbd.remnant.RemnantModel)
+        load_remnant_model |= not simple_remnant_model and isinstance(remnant_model, cbhbd.remnant.SimpleRemnantModel)
+        if load_remnant_model:
+            remnant_model = cbhbd.remnant.SimpleRemnantModel() if simple_remnant_model else cbhbd.remnant.RemnantModel()
         m_rem, chi_f, v_kick = remnant_model.get_remnant(m1, m2, S1, S2)
         mbhmaxmax = max(mbhmaxmax, m_rem)
 
