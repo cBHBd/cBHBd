@@ -1,0 +1,93 @@
+name: CI Tests
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  test-clusterbh:
+    name: "Test clusterBH"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run ClusterBH smoke test
+        run: python -m pytest tests/test_clusterbh.py -v
+
+  test-bhbdynamics:
+    name: "Test BHBdynamics"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run BHBdynamics smoke test
+        run: python -m pytest tests/test_bhbdynamics.py -v
+
+  notify-on-failure:
+    name: "Notify pusher on failure"
+    runs-on: ubuntu-latest
+    needs: [ test-clusterbh, test-bhbdynamics ]
+    if: failure()
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get pusher email
+        id: pusher
+        run: |
+          # Use the push event's pusher email when available,
+          # otherwise fall back to the commit author email.
+          PUSHER_EMAIL="${{ github.event.pusher.email }}"
+          if [ -z "$PUSHER_EMAIL" ]; then
+            PUSHER_EMAIL=$(git log -1 --format='%ae')
+          fi
+          echo "email=$PUSHER_EMAIL" >> "$GITHUB_OUTPUT"
+
+      - name: Send failure email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ steps.pusher.outputs.email }}
+          from: "CI Bot <${{ secrets.MAIL_USERNAME }}>"
+          subject: "❌ CI failed on push to ${{ github.ref_name }} (${{ github.repository }})"
+          body: |
+            One or more automated tests failed after your push.
+
+            Repository : ${{ github.repository }}
+            Branch     : ${{ github.ref_name }}
+            Commit     : ${{ github.sha }}
+            Pushed by  : ${{ github.actor }}
+
+            View the failed run:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Please fix the failing tests before merging.
