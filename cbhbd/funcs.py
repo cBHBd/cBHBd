@@ -1,7 +1,7 @@
+import ssptools
 import sys
 
 import numpy as np
-from numpy.random import random
 from scipy.optimize import bisect
 
 
@@ -21,6 +21,72 @@ class MergerOutcome:
                 MergerOutcome.GWCaptureBB,
                 MergerOutcome.Ejected,
                 MergerOutcome.GWCaptureDirect]
+
+
+def sample_power_law(xmin, xmax, alpha, size):
+    # Sample from power law x^alpha with limits xmin, xmax
+    # The parameter size can be an integer or an array for N-dim sampling
+
+    r = np.random.random_sample(size)
+    return (-(xmin ** (1 + alpha) * (-1 + r)) + xmax ** (1 + alpha) * r) ** (1 / (1 + alpha))
+
+
+def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, SN_model, sigma):
+    # Sample the original population of stellar-mass BHs. The total mass of the population is (approximately) Mbh.
+    # Remove BHs with a kick velocity greater than v_esc0. The progenitors follow an IMF with slope alpha between mmin
+    # and mmax (possibly with different slopes at lower masses). FeH is the iron abundance, SN_model is the supernova
+    # prescription, and sigma is the parameter of the Maxwellian distribution of kick velocities
+
+    if SN_model != "rapid" and SN_model != "delay":
+        raise NotImplementedError(f"SN model {SN_model} not implemented.")
+
+    # Load initial-final mass relation
+    ifmr = ssptools.ifmr.IFMR(FeH=FeH)
+
+    # Define limits of the IMF of the progenitor stars
+    assert mmax > mmin, "mmax must be greater than mmin"
+    assert mmax > ifmr.BH_mi[0], "The chosen IMF does not form BHs"
+    if mmin > ifmr.BH_mi[0]:
+        raise NotImplementedError(f"Can't have an IMF with a mass break M > {ifmr.BH_mi[0]} Msun")
+    if mmax > ifmr.BH_mi[1]:
+        raise NotImplementedError(f"Can't have a progenitor star with M > {ifmr.BH_mi[1]} Msun")
+
+    # We iterate in case we don't sample enough BHs. This is faster than a Python loop
+    i = 1
+    while True:
+        # We sample a number of BHs equal to nsamp, then keep only as many as needed. While the choice of nsamp is
+        # arbitrary and does not affect the end result, a too small value will lead to multiple iterations, while a too
+        # large value will lead to degraded performance and unnecessary memory usage. This ansatz is fairly efficient.
+        nsamp = int(i * Mbh / 10)
+
+        # Sample BH masses and kicks
+        vkick_unscaled = np.linalg.norm(np.random.normal(loc=0.0, scale=sigma, size=(nsamp, 3)), axis=1)
+        mproj = sample_power_law(ifmr.BH_mi[0], mmax, alpha, nsamp)
+        mbh = ifmr.predict(mproj)
+        fb_fun = ssptools.kicks._F12_fallback_frac(FeH, SNe_method=SN_model)
+        fb = np.clip(fb_fun(mbh), 0.0, 1 - 1e-16)
+        vkick = vkick_unscaled * (1 - fb)
+
+        # Remove kicked BHs
+        mbh = mbh[vkick <= v_esc0]
+
+        # Fix the total mass in BHs to be as close as possible to Mbh
+        mbh_cumsum = np.cumsum(mbh)
+        idx = np.argmin(np.abs(mbh_cumsum - Mbh))
+        actual_Mbh = mbh_cumsum[idx]
+        if idx + 1 == len(mbh):
+            i += 1
+            continue
+        mbh = mbh[:idx + 1]
+
+        # Construct BH array
+        spin = np.zeros_like(mbh)  # Zero initial spin
+        gen = np.zeros_like(mbh, dtype=int)
+        tdf = np.zeros_like(mbh)
+
+        bhv = np.vstack([mbh, spin, tdf, gen]).T
+
+        return actual_Mbh, bhv
 
 
 def get_sync_time(cbh, fbh0, Mcl_i, M3ej, t):
@@ -55,79 +121,6 @@ def get_mbh_params(bhv, t):
         raise RuntimeError(f"Error in determining {kmax=}")
 
     return m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax
-
-
-def dotp(a, b):
-    # Compute the dot product of two vectors
-    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-
-
-def cross(a, b):
-    # Compute the cross-product of two vectors
-    return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
-
-
-def recoil(m1, m2, S1, S2):
-    q = m2 / m1
-    eta = q / (1 + q) ** 2
-
-    theta = np.arccos(-1. + random() * (1. + 1.))
-    phi = 0. + random() * (2. * np.pi + 0.0)
-    chi1 = np.array([S1 * np.cos(theta), S1 * np.sin(theta) * np.sin(phi), S1 * np.sin(theta) * np.cos(phi)])
-
-    theta = np.arccos(-1. + random() * (1. + 1.))
-    phi = 0. + random() * (2. * np.pi + 0.0)
-    chi2 = np.array([S2 * np.cos(theta), S2 * np.sin(theta) * np.sin(phi), S2 * np.sin(theta) * np.cos(phi)])
-
-    theta = np.arccos(-1. + random() * (1. + 1.))
-    phi = 0. + random() * (2. * np.pi + 0.0)
-    j = np.array([np.cos(theta), np.sin(theta) * np.sin(phi), np.sin(theta) * np.cos(phi)])
-
-    chit = (q ** 2 * chi2 + chi1) / (1. + q) ** 2
-    chit2 = chit[0] ** 2 + chit[1] ** 2 + chit[2] ** 2
-    delta = (chi1 - q * chi2) / (1. + q)
-
-    # Parallel components
-    chip = dotp(chit, j)
-    deltap = dotp(delta, j)
-
-    # Perpendicular components
-    chi_cross = cross(chit, j)
-    delta_cross = cross(delta, j)
-    chiL = np.sqrt(chi_cross[0] ** 2 + chi_cross[1] ** 2 + chi_cross[2] ** 2)
-    deltaL = np.sqrt(delta_cross[0] ** 2 + delta_cross[1] ** 2 + delta_cross[2] ** 2)
-
-    # Recoil velocity
-    A = 1.2e4
-    B = -0.93
-    H = 6.9e3
-    V11 = 3677.76
-    VA = 2481.21
-    VB = 1792.45
-    VC = 1506.52
-    C2 = 1140.
-    C3 = 2481.
-
-    vm = A * eta ** 2 * (1. - q) / (1. + q) * (1. + B * eta)
-    vsL = H * eta ** 2 * deltap
-    Dphi = -1. + random() * (1. + 1.)
-    vsp = 16. * eta ** 2 * (
-            deltaL * (V11 + 2. * VA * chip + 4. * VB * chip ** 2 + 8. * VC * chip ** 3) + 2. * chiL * deltap * (
-            C2 + 2. * C3 * chip)) * Dphi
-    v_kick = np.sqrt(vm ** 2 + 2. * vm * vsL * np.cos(145. * np.pi / 180.) + vsL ** 2 + vsp ** 2)
-
-    # Compute new spin
-    t0 = -2.8904
-    t2 = -3.51712
-    t3 = 2.5763
-    s4 = -0.1229
-    s5 = 0.4537
-    ell = 2. * np.sqrt(3.) + t2 * eta + t3 * eta ** 2 + s4 * (1. + q) ** 4 / (1. + q ** 2) ** 2 * chit2 + (
-            s5 * eta + t0 + 2.) * (1. + q) ** 2 / (1. + q ** 2) * chip
-
-    chiv = chit + q / (1 + q) ** 2 * ell * j
-    chi_f = min(1., np.sqrt(chiv[0] ** 2 + chiv[1] ** 2 + chiv[2] ** 2))
-    return v_kick, chi_f
 
 
 def evolve_eccentricity(a0, e0, m1, m2, f=10):
