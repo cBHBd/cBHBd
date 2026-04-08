@@ -35,7 +35,7 @@ You can run ᴄʟᴜsᴛᴇʀBH as
 ```
 import cbhbd.clusterbh
 
-cbhbd.clusterbh.clusterBH(N, rhoh)
+cbhbd.clusterbh.ClusterBH(N, rhoh)
 ```
 
 with the following arguments:
