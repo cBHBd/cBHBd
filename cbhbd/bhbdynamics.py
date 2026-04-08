@@ -64,6 +64,9 @@ def get_aux_data(bhv, cbh, t_fin):
 
 def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose, output_dataframe, seed, **kwargs):
     global remnant_model
+
+    raise NotImplementedError("Test CI test suite")
+
     t_fin *= 1e9  # Convert time to year
     t_fin0 = t_fin
     MAX_TEND = 15e3
