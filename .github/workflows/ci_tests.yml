@@ -23,8 +23,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Run ClusterBH smoke test
+      - name: Test clusterBH
         run: python -m pytest tests/test_clusterbh.py -v
 
   test-bhbdynamics:
@@ -43,8 +42,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest .
 
-      - name: Run BHBdynamics smoke test
+      - name: Test BHBdynamics
         run: python -m pytest tests/test_bhbdynamics.py -v
