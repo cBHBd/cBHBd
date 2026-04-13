@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import pandas as pd
 from numpy.random import random
@@ -5,40 +7,24 @@ from numpy.random import random
 from . import funcs
 from . import cluster
 from . import remnant
+from .cbhbd import CBHBD
 from .funcs import MergerOutcome
 
-remnant_model = None
 
-
-def get_end_data(bhv, cbh, t_fin_yr):
-    # Now kmax includes stuff in dynamical friction
-    kmax = len(bhv[:, 0]) - np.nanargmax(np.flip(bhv[:, 0])) - 1
-    mIMBH = bhv[kmax, 0]
-    chiIMBH = bhv[kmax, 1]
-    genIMBH = bhv[kmax, 3]
-
-    Mbhf = cbh.Mbh_interp(t_fin_yr / 1e9)
-    Mclf = cbh.M_interp(t_fin_yr / 1e9)
-    rhf = cbh.rh_interp(t_fin_yr / 1e9)
-
-    aux_data = {"mIMBH": mIMBH, "chiIMBH": chiIMBH, "genIMBH": genIMBH,
-                "Mbhf": Mbhf, "Mclf": Mclf, "rhf": rhf}
-
-    return aux_data
+def _get_IMBH_data(self):
+    # In this calculation kmax explicitly includes stuff in dynamical friction
+    kmax = len(self.bhv[:, 0]) - np.nanargmax(np.flip(self.bhv[:, 0])) - 1
+    self.mIMBH = self.bhv[kmax, 0]
+    self.chiIMBH = self.bhv[kmax, 1]
+    self.genIMBH = self.bhv[kmax, 3]
 
 
 def _run_mergers(self, **kwargs):
-    t_fin0 = self.tend
-    global remnant_model
-    MAX_TEND = 15e3
-    assert (t_fin0 <= MAX_TEND), f"Can't run a model for more than {MAX_TEND} Myr"
-    t_fin_yr = t_fin0 * 1e6  # Convert time to year
-
     if self.verbose:
         print("Generating new model with")
         print(f"\t Mass = {self.M0:.2g} M_sun")
         print(f"\t Metallicity = {self.Z:.2e}")
-        print(f"\t Final time = {t_fin0 :.3g} Myr")
+        print(f"\t Final time = {self.tend :.3g} Myr")
         print(f"\t Initial density = {self.rhoh0 :.3g} M_sun/pc^3", flush=True)
         print(f"\t Seed = {self.seed}")
 
@@ -84,23 +70,20 @@ def _run_mergers(self, **kwargs):
     # Construct the BH IMF
     # FIXME: Mbh_min=0,  MprogIMBH=Mprog, MIMBH=MIMBH, NIMBH=NIMBH,
     self.cluster = cluster.Cluster(**kwargs)
-    t_fin_yr = min(t_fin_yr, self.cluster.t.max() * 1e9)
 
     # Build array with BH properties for retained stellar-mass BHs
-    Mtot, bhv = funcs.sample_BHs(self.cluster.Mbh[0] - MIMBH, v_esc0, self.m_breaks[-2], self.mmax, self.a_slopes[-1],
-                                 self.FeH, self.SN_model, self.cluster.sigmans)
-    mbhmaxmax = np.max(bhv[:, 0])
+    Mtot, self.bhv = funcs.sample_BHs(self.cluster.Mbh[0] - MIMBH, v_esc0, self.m_breaks[-2], self.mmax,
+                                      self.a_slopes[-1],
+                                      self.FeH, self.SN_model, self.cluster.sigmans)
 
-    # TODO: bhv.extend(bhvIMBH)
-    Nbh0 = len(bhv)
+    # TODO: self.bhv.extend(bhvIMBH)
+    Nbh0 = len(self.bhv)
 
     if self.verbose:
         print(f"\t Number of BHs after natal kicks: {Nbh0}")
 
     if Nbh0 < 3:  # Return if there are not enough BHs
-        aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
-        aux_data["mbhmaxmax"] = mbhmaxmax
-        return _format_output(bbh, self.output_dataframe, aux_data)
+        return _format_merger_output(bbh, self.output_dataframe)
 
     mbhmean = Mtot / Nbh0
     fbh0 = Mtot / self.M0
@@ -121,17 +104,15 @@ def _run_mergers(self, **kwargs):
 
     alpha_samp = None
 
-    while t <= t_fin_yr:
-        m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = funcs.get_mbh_params(bhv, t)
+    while t <= self.cluster.tfin * 1e9:
+        m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = funcs.get_mbh_params(self.bhv, t)
         alpha_samp = funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
 
         if Nbh_core < 4:
-            if len(bhv[~np.isnan(bhv[:, 0])]) < 4:
-                aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
-                aux_data["mbhmaxmax"] = mbhmaxmax
-                return _format_output(bbh, self.output_dataframe, aux_data)  # Exit if there are no BHs in the core
+            if len(self.bhv[~np.isnan(self.bhv[:, 0])]) < 4:
+                return _format_merger_output(bbh, self.output_dataframe)  # Exit if there are no BHs in the core
             else:
-                t += np.min(bhv[:, 2][bhv[:, 2] > 0])
+                t += np.min(self.bhv[:, 2][self.bhv[:, 2] > 0])
                 continue
 
         if np.isnan(mbhmax) or np.isnan(mbhmin) or kmin == kmax or kmin is None or kmax is None:
@@ -144,7 +125,7 @@ def _run_mergers(self, **kwargs):
         m_d[kmin] = np.nan
         k1 = np.nanargmin(np.abs(m_d - m1_t))
         m_d[kmin] = mbhmin
-        m1, S1, gen1 = bhv[k1, 0], bhv[k1, 1], bhv[k1, 3]
+        m1, S1, gen1 = self.bhv[k1, 0], self.bhv[k1, 1], self.bhv[k1, 3]
         if k1 == kmin or np.isnan(m1):  # Raise exception if the primary is the lightest BH
             raise RuntimeError(f"Error in {k1=}, {m1=} determination")
 
@@ -157,17 +138,15 @@ def _run_mergers(self, **kwargs):
                 1 / (1 + alpha_2))
         k2 = np.nanargmin(np.abs(m_d - q_t * m1))
         m_d[k1] = m1
-        m2, S2, gen2 = bhv[k2, 0], bhv[k2, 1], bhv[k2, 3]
+        m2, S2, gen2 = self.bhv[k2, 0], self.bhv[k2, 1], self.bhv[k2, 3]
         if k2 == k1 or np.isnan(m2):  # Raise exception if the primary and the secondary are the same BH
             raise RuntimeError(f"Error in {k2=}, {m2=} determination")
 
         assert m2 <= m1, "The primary should always be the most massive"
 
         # Update cluster properties
-        if t > t_fin_yr:
-            aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
-            aux_data["mbhmaxmax"] = mbhmaxmax
-            return _format_output(bbh, self.output_dataframe, aux_data)
+        if t > self.cluster.tfin * 1e9:
+            return _format_merger_output(bbh, self.output_dataframe)
         rh = self.cluster.rh_interp(t / 1e9)
         Mcl = self.cluster.M_interp(t / 1e9)
         Mbh = max(self.cluster.Mbh_interp(t / 1e9), 0)
@@ -193,26 +172,22 @@ def _run_mergers(self, **kwargs):
         merger_type = None
 
         while not lastBH:
-            m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = funcs.get_mbh_params(bhv, t)
+            m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = funcs.get_mbh_params(self.bhv, t)
             alpha_samp = funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
             Nbh = Nbh0 - N3ej
 
             if Nbh_core < 4:
-                if len(bhv[~np.isnan(bhv[:, 0])]) < 4:
-                    aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
-                    aux_data["mbhmaxmax"] = mbhmaxmax
-                    return _format_output(bbh, self.output_dataframe, aux_data)  # Exit if there are no BHs in the core
+                if len(self.bhv[~np.isnan(self.bhv[:, 0])]) < 4:
+                    return _format_merger_output(bbh, self.output_dataframe)  # Exit if there are no BHs in the core
                 else:
-                    t += np.min(bhv[:, 2][bhv[:, 2] > 0])
+                    t += np.min(self.bhv[:, 2][self.bhv[:, 2] > 0])
                     break
 
             if np.isnan(mbhmax) or np.isnan(mbhmin) or kmin == kmax or kmin is None or kmax is None:
                 raise ValueError(f"Error in determining m range, found {mbhmax=} ({kmax=}) and {mbhmin=} ({kmin=})")
 
             if N3ej + 3 >= Nbh0:
-                aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
-                aux_data["mbhmaxmax"] = mbhmaxmax
-                return _format_output(bbh, self.output_dataframe, aux_data)  # Exit if there are no BHs remaining
+                return _format_merger_output(bbh, self.output_dataframe)  # Exit if there are no BHs remaining
 
             # BINARY-SINGLE INTERACTION
             # Sample m_3 according to a power law p(m_3) \propto m_3^{alpha_3}
@@ -222,10 +197,10 @@ def _run_mergers(self, **kwargs):
             m_d[k1] = np.nan  # Do this for performance reasons
             m_d[k2] = np.nan
             k3 = np.nanargmin(np.abs(m_d - m3_t))
-            m3 = bhv[k3, 0]
+            m3 = self.bhv[k3, 0]
             m_d[k1] = m1
             m_d[k2] = m2
-            if k3 == k1 or k3 == k2 or np.isnan(m3) or bhv[k3, 2] > t:
+            if k3 == k1 or k3 == k2 or np.isnan(m3) or self.bhv[k3, 2] > t:
                 print(f"{k1=}, {k2=}, {k3=}, {m_d=}, {m3_t=}", flush=True)
                 raise ValueError(f"Error in {k3=}, {m3=} determination")
 
@@ -263,11 +238,11 @@ def _run_mergers(self, **kwargs):
                     k1, k3 = k3, k1
                 elif exchange_outcome == "exchange_2":
                     k2, k3 = k3, k2
-                if bhv[k2, 0] > bhv[k1, 0]:  # Force that the primary is always the most massive
+                if self.bhv[k2, 0] > self.bhv[k1, 0]:  # Force that the primary is always the most massive
                     k1, k2 = k2, k1
-                m1, S1, gen1 = bhv[k1, 0], bhv[k1, 1], bhv[k1, 3]
-                m2, S2, gen2 = bhv[k2, 0], bhv[k2, 1], bhv[k2, 3]
-                m3, S3, gen3 = bhv[k3, 0], bhv[k3, 1], bhv[k3, 3]
+                m1, S1, gen1 = self.bhv[k1, 0], self.bhv[k1, 1], self.bhv[k1, 3]
+                m2, S2, gen2 = self.bhv[k2, 0], self.bhv[k2, 1], self.bhv[k2, 3]
+                m3, S3, gen3 = self.bhv[k3, 0], self.bhv[k3, 1], self.bhv[k3, 3]
 
             # Compute the recoil of the binary and interloper
             vbin = np.sqrt(dE * Ebin * (2 / (m1 + m2)) * (m3 / (m1 + m2 + m3)))  # In km/s
@@ -280,13 +255,23 @@ def _run_mergers(self, **kwargs):
 
             # Ejection of interlopers
             if v3 > v_esc:
+                if self.mIMBHej is None or m3 > self.mIMBHej:
+                    self.mIMBHej = m3
+                    self.chiIMBHej = self.bhv[k3, 1]
+                    self.genIMBHej = self.bhv[k3, 3]
+
                 N3ej += 1
                 M3ej += m3
-                bhv[k3, 0] = np.nan
-                m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = funcs.get_mbh_params(bhv, t)
+                self.bhv[k3, 0] = np.nan
+                m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = funcs.get_mbh_params(self.bhv, t)
 
             # Ejection of binaries
             if vbin > v_esc:
+                if self.mIMBHej is None or m1 > self.mIMBHej:
+                    self.mIMBHej = m1
+                    self.chiIMBHej = self.bhv[k1, 1]
+                    self.genIMBHej = self.bhv[k1, 3]
+
                 merger_type = MergerOutcome.Ejected
                 break
 
@@ -305,7 +290,7 @@ def _run_mergers(self, **kwargs):
                 m_d[kmin4b] = np.nan
                 k3 = np.nanargmin(np.abs(m_d - m3_t))
                 m_d[kmin4b] = mbhmin4b
-                m3, S3, gen3 = bhv[k3, 0], bhv[k3, 1], bhv[k3, 3]
+                m3, S3, gen3 = self.bhv[k3, 0], self.bhv[k3, 1], self.bhv[k3, 3]
                 if k3 == kmin or k3 == k1 or k3 == k2 or np.isnan(m3):  # Check that we don't select the same BH twice
                     raise RuntimeError(f"Error in {k3=}, {m3=} determination  ({k1=}, {k2=}, {kmin=}, {kmin4b=})")
 
@@ -322,7 +307,7 @@ def _run_mergers(self, **kwargs):
                 m_d[k1] = m1
                 m_d[k2] = m2
                 m_d[k3] = m3
-                m4, S4, gen4 = bhv[k4, 0], bhv[k4, 1], bhv[k4, 3]
+                m4, S4, gen4 = self.bhv[k4, 0], self.bhv[k4, 1], self.bhv[k4, 3]
                 if k4 == k1 or k4 == k2 or k4 == k3 or np.isnan(m4):  # Check that we don't select the same BH twice
                     raise RuntimeError(f"Error in {k4=}, {m4=} determination ({k1=}, {k2=}, {k3=}, {kmin=}, {kmin4b=})")
 
@@ -402,16 +387,15 @@ def _run_mergers(self, **kwargs):
         assert not np.isnan(t_gw), f"Error in {t_gw = }"
 
         # Compute GW recoil kick and spins
-        load_remnant_model = remnant_model is None
-        load_remnant_model |= self.simple_remnant_model and isinstance(remnant_model, remnant.RemnantModel)
-        load_remnant_model |= not self.simple_remnant_model and isinstance(remnant_model, remnant.SimpleRemnantModel)
-        if load_remnant_model:
-            remnant_model = remnant.SimpleRemnantModel() if self.simple_remnant_model else remnant.RemnantModel()
-        m_rem, chi_f, v_kick = remnant_model.get_remnant(m1, m2, S1, S2)
-        mbhmaxmax = max(mbhmaxmax, m_rem)
-
-        # TODO: Give m_rem in output
-
+        if self.simple_remnant_model:
+            if CBHBD.remnant_model_simple is None:
+                CBHBD.remnant_model_simple = remnant.SimpleRemnantModel()
+            m_rem, chi_f, v_kick = CBHBD.remnant_model_simple.get_remnant(m1, m2, S1, S2)
+        else:
+            if CBHBD.remnant_model_NR is None:
+                CBHBD.remnant_model_NR = remnant.RemnantModel()
+            m_rem, chi_f, v_kick = CBHBD.remnant_model_NR.get_remnant(m1, m2, S1, S2)
+        assert 1 >= chi_f >= 0, f"Error in {chi_f = }"
         t_sim = t
         if v_kick < v_esc and merger_type != MergerOutcome.Ejected:  # If the binary is retained, form a merger product BH
             # Recompute hardening timescale if retained
@@ -424,24 +408,30 @@ def _run_mergers(self, **kwargs):
 
             # Set such that the total BH mass at that time is the same as in the cluster model
             t_form = t + tfric + t_gw
-            bhv[k1, 0] = np.nan  # Remove one BH
-            bhv[k2, 0] = m_rem  # Make a new BH (merger product)
-            bhv[k2, 1] = chi_f  # New spin
-            bhv[k2, 2] = t_form  # Reinclude merger product in core only after dynamical friction
-            bhv[k2, 3] = max(bhv[k1, 3], bhv[k2, 3]) + 1  # Increase the BH generation by one
+            self.bhv[k1, 0] = np.nan  # Remove one BH
+            self.bhv[k2, 0] = m_rem  # Make a new BH (merger product)
+            self.bhv[k2, 1] = chi_f  # New spin
+            self.bhv[k2, 2] = t_form  # Reinclude merger product in core only after dynamical friction
+            self.bhv[k2, 3] = max(self.bhv[k1, 3], self.bhv[k2, 3]) + 1  # Increase the BH generation by one
 
         else:  # If the binary is ejected or the end product is ejected then remove members
             M3ej += m1 + m2
             if M3ej > fbh0 * self.M0:
                 lastBH = True
 
-            t = funcs.get_sync_time(self.cluster, fbh0, self.M0, M3ej, t)
+            if merger_type != MergerOutcome.Ejected and (self.mIMBHej is None or m_rem > self.mIMBHej):
+                # We add the merger_type != MergerOutcome.Ejected clause so that we don't count a binary that has not
+                # merged yet as an ejected IMBH
+                self.mIMBHej = m_rem
+                self.chiIMBHej = chi_f
+                self.genIMBHej = max(self.bhv[k1, 3], self.bhv[k2, 3]) + 1
 
+            t = funcs.get_sync_time(self.cluster, fbh0, self.M0, M3ej, t)
             N3ej += 2
 
             # Set such that the total BH mass at that time is the same as in the cluster model
-            bhv[k1, 0] = np.nan  # Remove one BH
-            bhv[k2, 0] = np.nan  # Remove other BH
+            self.bhv[k1, 0] = np.nan  # Remove one BH
+            self.bhv[k2, 0] = np.nan  # Remove other BH
 
         t_merge = t + t_gw  # Time of merger
 
@@ -451,42 +441,39 @@ def _run_mergers(self, **kwargs):
         if merger_type is None:
             raise ValueError("Merger type has not been set!")
 
-        bbh.append({"t_merge": t_merge,  # 0 Merger time [yr]
-                    "t_sim": t_sim,  # 1 Simulation time [yr]
-                    "m1": m1,  # 2 Mass of primary BH [Msun]
-                    "m2": m2,  # 3 Mass of secondary BH [Msun]
-                    "e": e,  # 4 Eccentricity of binary just before GW radiation takes over
-                    "merger_type": merger_type,  # 6 Merger type [cbhbd.funcs.MergerOutcome]
-                    "rh": rh,  # 8 Half-mass radius at t_sim [pc]
-                    "v_kick": v_kick,  # 9 Recoil kick [km/s]
-                    "v_esc": v_esc,  # 10 Escape velocity of the cluster at t_sim [km/s]
-                    "chi_f": chi_f,  # 11 Final remnant spin
-                    "S1": S1,  # 12 Spin of primary BH
-                    "S2": S2,  # 13 Spin of secondary BH
-                    "a": a,  # 15 Semimajor axis before GW radiation takes over [AU]
-                    "gen": round(max(gen1, gen2)),  # 16 Generation of merger
-                    "Mbh": Mbh,  # 17 Total mass in BHs in the cluster at t_sim [Msun]
+        bbh.append({"t_merge": t_merge,  # Merger time [yr]
+                    "t_sim": t_sim,  # Simulation time [yr]
+                    "m1": m1,  # Mass of primary BH [Msun]
+                    "m2": m2,  # Mass of secondary BH [Msun]
+                    "m_rem": m_rem,  # Mass of remnant BH [Msun]
+                    "e": e,  # Eccentricity of binary just before GW radiation takes over
+                    "merger_type": merger_type,  # Merger type [cbhbd.funcs.MergerOutcome]
+                    "rh": rh,  # Half-mass radius at t_sim [pc]
+                    "v_kick": v_kick,  # Recoil kick [km/s]
+                    "v_esc": v_esc,  # Escape velocity of the cluster at t_sim [km/s]
+                    "chi_f": chi_f,  # Final remnant spin
+                    "S1": S1,  # Spin of primary BH
+                    "S2": S2,  # Spin of secondary BH
+                    "a": a,  # Semimajor axis before GW radiation takes over [AU]
+                    "gen": round(max(gen1, gen2)),  # Generation of merger
+                    "Mbh": Mbh,  # Total mass in BHs in the cluster at t_sim [Msun]
                     })
 
         if lastBH:
-            aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
-            aux_data["mbhmaxmax"] = mbhmaxmax
-            return _format_output(bbh, self.output_dataframe, aux_data)
-    aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
-    aux_data["mbhmaxmax"] = mbhmaxmax
-    return _format_output(bbh, self.output_dataframe, aux_data)
+            return _format_merger_output(bbh, self.output_dataframe)
+    return _format_merger_output(bbh, self.output_dataframe)
 
 
-def _format_output(bbh, output_dataframe, aux_data):
+def _format_merger_output(bbh, output_dataframe):
     bbh = pd.DataFrame(bbh)
-    colnames = ["t_merge", "t_sim", "m1", "m2", "e", "merger_type", "rh", "v_kick", "v_esc",
+    colnames = ["t_merge", "t_sim", "m1", "m2", "m_rem", "e", "merger_type", "rh", "v_kick", "v_esc",
                 "chi_f", "S1", "S2", "a", "gen", "Mbh"]
     assert len(bbh) == 0 or (bbh.columns.values == colnames).all(), f"Wrong column names in output"
     if len(bbh) == 0:
         bbh = pd.DataFrame(columns=colnames)
 
     retval = bbh if output_dataframe else bbh.to_numpy()
-    return retval, aux_data
+    return retval
 
 # if __name__ == "__main__":
 #     verbose = True

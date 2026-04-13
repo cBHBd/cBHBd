@@ -135,6 +135,7 @@ class Cluster:
 
         # Integration parameters.
         self.tend = None  # Defined in CBHBD.
+        self.tfin = None  # Defined in CBHBD.
         self.dtout = None  # Defined in CBHBD
         self.Mst_min = 100  # [Msun] Stop criterion for stars. Below this value, the integration stops.
         self.Mbh_min = 550  # [Msun] Stop criterion for BHs. Below this value the integration stops. The integrator stops only if both the stellar option is selected and the specified conditions are met.
@@ -223,6 +224,8 @@ class Cluster:
         if kwargs is not None:
             for key, value in kwargs.items():
                 setattr(self, key, value)
+
+        self.tfin = None  # [Gyr] Final time of the simulation. Can be smaller than tend if e.g. the cluster dissolves
 
         # Define models for stellar evolution for ssp=False. Coefficients can capture different dependences on metallicity, or an explicit dependence can be inserted.
         self.sev_dict = {
@@ -2028,6 +2031,8 @@ class Cluster:
 
             # Writes data.
             numpy.savetxt(self.outfile, data, header=table_header, fmt="%12.5e", comments="")
+
+        self.tfin = min(self.tend * 1e3, self.t.max())
 
 
 # Compute initial average mass.

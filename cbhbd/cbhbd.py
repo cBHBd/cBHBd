@@ -4,10 +4,14 @@ from . import mergers
 
 
 class CBHBD:
+    remnant_model_simple = None
+    remnant_model_NR = None
+
     def __init__(self, **kwargs):
         self._run_mergers = mergers._run_mergers
+        self._get_IMBH_data = mergers._get_IMBH_data
 
-        self.tend = 13.8e3  # [Myr] Final time instance for integration. Here taken to be a Hubble time.
+        self.tend = 13.8e3  # [Myr] Requested final time for integration. Actual final time can be smaller if e.g. the cluster dissolves
         self.M0 = None  # [Msun] Initial mass of the cluster.
         self.N = None  # Initial number of stars in the cluster
         self.rh0 = None  # [pc] Initial half-mass radius
@@ -60,7 +64,12 @@ class CBHBD:
             if attr[0] != "_":
                 kwargs[attr] = value
 
-        self.cluster, self.mergers, self.end_data = None, None, None
+        # Output
+        self.cluster, self.mergers = None, None
+        self.mIMBH, self.chiIMBH, self.genIMBH = None, None, None  # Properties of the most massive BH in the cluster.
+        self.mIMBHej, self.chiIMBHej, self.genIMBHej = None, None, None  # Properties of the most massive BH ejected from the cluster.
+        self.bhv = None
+
         self._run(**kwargs)
 
     def _construct_input_params(self):
@@ -106,7 +115,8 @@ class CBHBD:
     def _run(self, **kwargs):
         if self.compute_mergers:
             try:
-                self.mergers, self.end_data = self._run_mergers(self, **kwargs)
+                self.mergers = self._run_mergers(self, **kwargs)
+                self._get_IMBH_data(self)
             except Exception as err:
                 print("Error in model with", flush=True)
                 print(f"\t Mass = {self.M0} M_sun", flush=True)
@@ -120,7 +130,3 @@ class CBHBD:
 
         else:
             self.cluster = cluster.Cluster(**kwargs)
-
-
-if __name__ == "__main__":
-    cbhbd = CBHBD(M0=1e5, rh0=2, compute_mergers=True, verbose=True)

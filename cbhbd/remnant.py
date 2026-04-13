@@ -112,4 +112,4 @@ class SimpleRemnantModel:
 
         chiv = chit + q / (1 + q) ** 2 * ell * j
         chi_f = min(1., np.sqrt(chiv[0] ** 2 + chiv[1] ** 2 + chiv[2] ** 2))
-        return m1 + m2, v_kick, chi_f
+        return m1 + m2, chi_f, v_kick
