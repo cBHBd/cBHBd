@@ -21,7 +21,7 @@ warnings.simplefilter("ignore", category=RuntimeWarning)
 
 
 class ClusterBH:
-    def __init__(self, N, rhoh, **kwargs):
+    def __init__(self, **kwargs):
         """
         Initialize the star cluster model.
 
@@ -33,13 +33,17 @@ class ClusterBH:
 
         # Physical constants.
         self.G = 0.004499  # [pc^3/Msun/Myr^2] Gravitational constant. It is 0.004302 in [(km/s)**2 pc/Msun].
-        self.Zsolar = 0.02  # Solar metallicity.
+        self.Zsolar = None  # Defined in CBHBD class
 
         # Cluster ICs.
-        self.N = N  # Initial number of stars.
-        self.m0 = None  # [Msun] Initial average mass. If unspecified, it is computed directly from the IMF. The computation is skipped if the user inserts it as argument.
-        self.rg = 8  # [kpc] Galactocentric distance of the cluster. For eccentric orbits, consider it as a(1 - e) where a is the semi-major axis, e is eccentricity.
-        self.Z = 0.0002  # Metallicity of the cluster. Default to low-metallicity.
+        self.N = None  # Defined in CBHBD class
+        self.m0 = None  # Defined in CBHBD class
+        self.rg = None  # Defined in CBHBD class
+        self.Z = None  # Defined in CBHBD class
+        self.FeH = None  # Defined in CBHBD class
+        self.rhoh0 = None  # Defined in CBHBD class
+        self.M0 = None  # Defined in CBHBD
+        self.rh0 = None  # Defined in CBHBD
         self.W0 = 7  # Central potential value.
         self.eta0 = 3.  # Initial value for mass segregation. For a homologous distribution of stars, set it equal to 3.
         self.Nrlx0 = 0  # Numer of inital elapsed relaxatio.
@@ -51,7 +55,7 @@ class ClusterBH:
         self.mup = 30  # [Msun] Upper BH mass in the BHMF
         self.mb = 0.  # [Msun] Lowest mass unaffected by kicks. Default option is for no kicks. If kicks are activated, it is computed subsequently.
         self.alpha_BH = 0.5  # Slope in the BHMF. If kicks are considered, the slope cannot be equal to -5 - 3k, where k is a positive integer. The special value of -2 (k=-1) is considered, but other values are not. Can be used without kicks.
-        self.fretm = 1  # Retention fraction of BHs. The default value neglects kicks. Changes the initial BH mass only trhough the prescription implemented in this script.
+        self.fretm = 1  # Retention fraction of BHs. The default value neglects kicks. Changes the initial BH mass only through the prescription implemented in this script.
         self.t_bhcreation = 8  # [Myr] Time required to create all BHs.
         self.N_points = 500  # Number of points used for even spacing.
         self.Mbh0, self.mbh0 = 1e-99, 1e-89  # [Msun, Msun]. We set the BH masses equal to 0. They are later extracted from the BHMF. If not, the cluster is evolved without BHs.
@@ -130,13 +134,13 @@ class ClusterBH:
         self.Nrlxf = 1  # Numer of elapsed relaxations to core collapse.
 
         # Integration parameters.
-        self.tend = 13.8e3  # [Myr] Final time instance for integration. Here taken to be a Hubble time.
-        self.dtout = 2  # [Myr] Time step for integration. If None, computations are faster.
+        self.tend = None  # Defined in CBHBD.
+        self.dtout = None  # Defined in CBHBD
         self.Mst_min = 100  # [Msun] Stop criterion for stars. Below this value, the integration stops.
         self.Mbh_min = 550  # [Msun] Stop criterion for BHs. Below this value the integration stops. The integrator stops only if both the stellar option is selected and the specified conditions are met.
         self.integration_method = "RK45"  # Integration method. Default to a Runge-Kutta.
         self.vectorize = False  # Condition for solve_ivp. Solves faster coupled differential equations when the derivatives are arrays.
-        self.dense_output = True  # Condition for solve_ivp to give continuous solutions. Facilitates interpolation. Can be used instead of specifying t_eval.
+        self.dense_output = None  # Defined in CBHBD.
         self.rtol, self.atol = 1e-6, 1e-7  # Relative and absolute tolerance for integration.
 
         # Output.
@@ -144,12 +148,12 @@ class ClusterBH:
         self.outfile = "cluster.txt"  # File to save the results, if needed.
 
         # Conditions.
-        self.BH = True  # Condition to work with BHs in clusterBH.
-        self.ssp = True  # Condition to use the SSP tools to extract the BHMF at any moment. Default option uses such tools.
+        self.BH = None  # Defined in CBHBD
+        self.ssp = None  # Defined in CBHBD
         self.sev = True  # Condition to consider effects of stellar evolution. Affects total mass and expansion of the cluster. Default option considers stellar evolution.
         self.ssp_sev = True  # Both ssp and sev must also be true.
         self.sev_tune = True  # Condition to consider changes in the sev parameters should the user insert an IMF different than a Kroupa. Default option to True. If false, the user can insert a different IMF with different set of parameters. Used only if ssp is False.
-        self.kick = True  # Condition to include natal kicks. Affects the BH population obtained. Default option considers kicks.
+        self.kick = None  # Defined in CBHBD
         self.tidal = True  # Condition to activate tides. Default option considers the effect of tides.
         self.rt_approx = True  # Condition to use approximate expression for tidal radius. If deactivated, the tidal radius for a circular orbit is extracted numerically for a given cluster model.
         self.escapers = False  # Condition for escapers to carry negative energy as they evaporate (only) from the cluster due to the tidal field. Affects mainly the expansion of sparse clusters at small galactocentric distances. Default option is deactivated.
@@ -206,15 +210,11 @@ class ClusterBH:
         # Pass in lists for a_slopes, m_breaks and nbins. Any number of IMF intervals, based on size of lists. m_breaks must be size N + 1.
 
         # Slopes of mass function.
-        self.a_slopes = [-1.3, -2.3, -2.3]
-        self.a_kroupa = self.a_slopes.copy()  # In case the user inserts a different set of slopes (and mass breaks), the stellar mass loss rate ν (and time tsev) is different. If ssp is True, this is acoounted, if not,  bottom-light IMFs are studied with sev_tune=True.
-
-        # Mass function break masses.
-        self.m_breaks = [0.08, 0.5, 1., 150.]
-        self.m_kroupa = self.m_breaks.copy()  # The user can insert different masses. The slopes and mass breaks of the Kroupa should not change.
-
-        # Number of bins per interval of the mass function.
-        self.nbins = [5, 5, 20]
+        self.a_slopes = None  # Defined in CBHBD.
+        self.a_kroupa = None  # Defined in CBHBD.
+        self.m_breaks = None  # Defined in CBHBD.
+        self.m_kroupa = None  # Defined in CBHBD.
+        self.nbins = None  # Defined in CBHBD.
 
         # All other arguments to be passed to InitialBHPopulation, including IFMR and natal kick options. See SSPtools documentation for details.
         self.ibh_kwargs = dict()
@@ -737,16 +737,6 @@ class ClusterBH:
             'exponential': lambda x: 1 - exp(- self.gamma3 * (x + 1) ** self.gamma4)
         }
 
-        # The user can either specify the initial average mass beforehand, or it is extracted from the IMF.
-        # If m0 is specified in the beginning, the IMF must be well defined so that it matches.
-        if self.m0 is None:
-            self.m0 = initial_average_mass(self.a_slopes,
-                                           self.m_breaks)  # [Msun] Average mass obtained for this particular IMF.
-
-        self.FeH = log10(self.Z / self.Zsolar)  # Metallicity in solar units.
-
-        self.M0 = self.m0 * N  # [Msun] Total mass of stars (cluster) initially. This is used for computations, even if the BH population is present in clusterBH at t=0.
-        self.rh0 = (3 * self.M0 / (8 * pi * rhoh)) ** (1. / 3)  # [pc] Initial half-mass radius.
         self.fc = numpy.sqrt(
             self.W0 / 7) if self.W0 is not None else 1  # Factor for escape velocity. It is different for other King models. By default, W0 is set to 7 (normalized).
         self.vesc0 = self._vesc(self.M0, self.rh0)  # [km/s] Initial escape velocity.
@@ -792,7 +782,7 @@ class ClusterBH:
 
             # Implement kicks, if activated, for this IMF, number of stars, with such metallicity, central escape velocity and BHMF conditions.
             self.ibh = ssptools.InitialBHPopulation.from_powerlaw(self.m_breaks, self.a_slopes, self.nbins, self.FeH,
-                                                                  N0=N - self.MprogIMBH / self.m0, vesc=self.vesc0,
+                                                                  N0=self.N - self.MprogIMBH / self.m0, vesc=self.vesc0,
                                                                   natal_kicks=self.kick,
                                                                   **self.ibh_kwargs)
             self.sev_rates = ssptools.LuminousEvMassLoss(self.ibh.IMF,
@@ -913,7 +903,7 @@ class ClusterBH:
                 self.mst_sev_BH = numpy.interp(self.t_bhcreation, self.t_mst,
                                                self.mst_sev)  # [Msun] Average stellar mass when all BHs are created. Effect of tides is neglected for simplicity, we focus only on BH creation.
                 self.Mst_lost = (
-                                        self.m0 - self.mst_sev_BH) * N  # [Msun] Approximate value for the stellar mass lost to create all BHs.
+                                        self.m0 - self.mst_sev_BH) * self.N  # [Msun] Approximate value for the stellar mass lost to create all BHs.
 
         # This condition checks whether BHs will be created. If not, clusterBH works only with stars.
         if not self.BH or self.Mbh0 < self.mlo:  # Second condition may arise from ssp for extreme imfs. Since no BHs would be predicted in that scenario, we change the condition.
@@ -989,7 +979,7 @@ class ClusterBH:
         self.balance_function = self.balance_dict[
             self.balance_model]  # Function used to make the differential equation continuous.
 
-        self._evolve(N, rhoh)  # Runs the integrator, generates the results.
+        self._evolve(self.N, self.rhoh0)  # Runs the integrator, generates the results.
 
     # Functions:
 

@@ -1,60 +1,25 @@
-import time
-
 import numpy as np
 import pandas as pd
 from numpy.random import random
 
-import cbhbd.funcs
-from cbhbd.clusterbh import ClusterBH
-from cbhbd.funcs import MergerOutcome
+from . import funcs
+from . import clusterbh
+from . import remnant
+from .funcs import MergerOutcome
 
 remnant_model = None
 
 
-def run_model(t_fin, Mcl0, Z, rhoh0, SN_model="rapid", simple_remnant_model=True, rg=8, output_dataframe=True,
-              verbose=True, seed=None, **kwargs):
-    """
-    Run a cluster model using cBHBd. Returns the properties of all the BBH mergers in the cluster.
-
-    :param t_fin: Final time of the simulation [Gyr]
-    :param Mcl0: Initial mass of the cluster [Msun]
-    :param Z: Metallicity
-    :param rhoh0: Initial density within the half-mass radius [Msun/pc^3]
-    :param SN_model: Model for the supernova explosion ["rapid" or "delay"]
-    :param simple_remnant_model: If True, use a simplified GW remnant model. If False, use the full NR GW remnant model.
-    :param rg: Galactocentric radius [kpc]
-    :param output_dataframe: If True, return is a pandas dataframe, otherwise a list
-    :param verbose: If True, print extra output.
-    :param seed: Seed for random number generator. Use None to get a random seed.
-    :param kwargs: Additional arguments to pass to clusterBH.
-    :return: the properties of all the BBH mergers in the cluster.
-    """
-
-    try:
-        return _run_model(t_fin, Mcl0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose, output_dataframe, seed,
-                          **kwargs)
-    except Exception as err:
-        print("Error in model with", flush=True)
-        print(f"\t Mass = {Mcl0} M_sun", flush=True)
-        print(f"\t Metallicity = {Z}", flush=True)
-        print(f"\t Final time = {t_fin} Gyr", flush=True)
-        print(f"\t Initial density = {rhoh0:.3g} M_sun/pc^3", flush=True)
-        print(f"\t SN model = {SN_model}", flush=True)
-        print(f"\t Seed = {seed}", flush=True)
-        print(err, flush=True)
-        raise err
-
-
-def get_aux_data(bhv, cbh, t_fin):
+def get_end_data(bhv, cbh, t_fin_yr):
     # Now kmax includes stuff in dynamical friction
     kmax = len(bhv[:, 0]) - np.nanargmax(np.flip(bhv[:, 0])) - 1
     mIMBH = bhv[kmax, 0]
     chiIMBH = bhv[kmax, 1]
     genIMBH = bhv[kmax, 3]
 
-    Mbhf = cbh.Mbh_interp(t_fin / 1e9)
-    Mclf = cbh.M_interp(t_fin / 1e9)
-    rhf = cbh.rh_interp(t_fin / 1e9)
+    Mbhf = cbh.Mbh_interp(t_fin_yr / 1e9)
+    Mclf = cbh.M_interp(t_fin_yr / 1e9)
+    rhf = cbh.rh_interp(t_fin_yr / 1e9)
 
     aux_data = {"mIMBH": mIMBH, "chiIMBH": chiIMBH, "genIMBH": genIMBH,
                 "Mbhf": Mbhf, "Mclf": Mclf, "rhf": rhf}
@@ -62,23 +27,23 @@ def get_aux_data(bhv, cbh, t_fin):
     return aux_data
 
 
-def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose, output_dataframe, seed, **kwargs):
+def _run_mergers(self, **kwargs):
+    t_fin0 = self.tend
     global remnant_model
-    t_fin *= 1e9  # Convert time to year
-    t_fin0 = t_fin
     MAX_TEND = 15e3
-    assert (t_fin <= MAX_TEND * 1e6), f"Can't run a model for more than {MAX_TEND / 1e3} Gyr"
+    assert (t_fin0 <= MAX_TEND), f"Can't run a model for more than {MAX_TEND} Myr"
+    t_fin_yr = t_fin0 * 1e6  # Convert time to year
 
-    if verbose:
+    if self.verbose:
         print("Generating new model with")
-        print(f"\t Mass = {M0:.2g} M_sun")
-        print(f"\t Metallicity = {Z:.2e}")
-        print(f"\t Final time = {t_fin / 1e9 :.3g} Gyr")
-        print(f"\t Initial density = {rhoh0 :.3g} M_sun/pc^3", flush=True)
-        print(f"\t Seed = {seed}")
+        print(f"\t Mass = {self.M0:.2g} M_sun")
+        print(f"\t Metallicity = {self.Z:.2e}")
+        print(f"\t Final time = {t_fin0 :.3g} Myr")
+        print(f"\t Initial density = {self.rhoh0 :.3g} M_sun/pc^3", flush=True)
+        print(f"\t Seed = {self.seed}")
 
-    if seed is not None:
-        np.random.seed(seed)
+    if self.seed is not None:
+        np.random.seed(self.seed)
 
     # Constants and conversion factors
     G_AU_MSUN_KMS = 887.1278675
@@ -89,9 +54,8 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
 
     # Cluster evolution
     # Some other model parameters
-    kick = True  # If true, consider ejection by BH natal kicks
     bbh = []
-    v_esc0 = 50 * (M0 / 1e5) ** (1 / 3) * (rhoh0 / 1e5) ** (1 / 6)
+    v_esc0 = 50 * (self.M0 / 1e5) ** (1 / 3) * (self.rhoh0 / 1e5) ** (1 / 6)
 
     # Construct IMBH seeds
     # bhv = []
@@ -103,12 +67,12 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
     #     assert Z_file_imbh is not None, "Z_file_imbh must be provided if add_imbh_seed is True"
     #     imbhdata = np.loadtxt(Z_file_imbh)
     #
-    #     if Z == 0.003:
+    #     if self.Z == 0.003:
     #         NIMBH = np.random.randint(80, 110 + 1)
-    #     elif Z == 0.007:
+    #     elif self.Z == 0.007:
     #         NIMBH = np.random.randint(50, 75 + 1)
     #     else:
-    #         raise NotImplementedError(f"IMBH seeding for {Z = } not implemented")
+    #         raise NotImplementedError(f"IMBH seeding for {self.Z = } not implemented")
     #
     #     for i in range(NIMBH):
     #         mproj0, mimbh0, _ = imbhdata[np.random.randint(0, len(imbhdata))]
@@ -118,42 +82,34 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
     #         bhv.append([mimbh0, spin0, 0, 1])
 
     # Construct the BH IMF
-    mmin = 0.08
-    mmax = 150
-    a_slopes = [-1.3, -2.3, -2.3]
-    m_breaks = [mmin, 0.5, 1, mmax]
-
-    mmean = cbhbd.clusterbh.initial_average_mass(a_slopes, m_breaks)
-    cbh = ClusterBH(M0 / mmean, rhoh0, Z=Z, ssp=True, a_slopes=a_slopes, m_breaks=m_breaks,
-                    kick=kick, dtout=None, dense_output=True, tend=MAX_TEND, Mbh_min=0, rg=rg, MprogIMBH=Mprog,
-                    MIMBH=MIMBH, NIMBH=NIMBH)
-    t_fin = min(t_fin, cbh.t.max() * 1e9)
+    # FIXME: Mbh_min=0,  MprogIMBH=Mprog, MIMBH=MIMBH, NIMBH=NIMBH,
+    self.cluster = clusterbh.ClusterBH(**kwargs)
+    t_fin_yr = min(t_fin_yr, self.cluster.t.max() * 1e9)
 
     # Build array with BH properties for retained stellar-mass BHs
-    FeH = np.log10(Z / cbh.Zsolar)
-    Mtot, bhv = cbhbd.funcs.sample_BHs(cbh.Mbh[0] - MIMBH, v_esc0, m_breaks[-2], mmax, a_slopes[-1], FeH, SN_model,
-                                       cbh.sigmans)
+    Mtot, bhv = funcs.sample_BHs(self.cluster.Mbh[0] - MIMBH, v_esc0, self.m_breaks[-2], self.mmax, self.a_slopes[-1],
+                                 self.FeH, self.SN_model, self.cluster.sigmans)
     mbhmaxmax = np.max(bhv[:, 0])
 
-    # bhv.extend(bhvIMBH)
+    # TODO: bhv.extend(bhvIMBH)
     Nbh0 = len(bhv)
 
-    if verbose:
+    if self.verbose:
         print(f"\t Number of BHs after natal kicks: {Nbh0}")
 
     if Nbh0 < 3:  # Return if there are not enough BHs
-        aux_data = get_aux_data(bhv, cbh, t_fin)
+        aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
         aux_data["mbhmaxmax"] = mbhmaxmax
-        return _format_output(bbh, output_dataframe, aux_data)
+        return _format_output(bbh, self.output_dataframe, aux_data)
 
     mbhmean = Mtot / Nbh0
-    fbh0 = Mtot / M0
-    if verbose:
+    fbh0 = Mtot / self.M0
+    if self.verbose:
         print(f"\t Averaged BH mass after kicks: {mbhmean:.2f}")
         print(f"\t BH mass fraction: {fbh0 = :.4f}")
 
     # Compute time when balanced evolution starts (Antonini & Gieles 2020)
-    tcc = cbh.tcc / 1e3
+    tcc = self.cluster.tcc / 1e3
 
     # Start time integration
     t = tcc * 1e9  # In years from this on
@@ -165,15 +121,15 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
 
     alpha_samp = None
 
-    while t <= t_fin:
-        m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = cbhbd.funcs.get_mbh_params(bhv, t)
-        alpha_samp = cbhbd.funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
+    while t <= t_fin_yr:
+        m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = funcs.get_mbh_params(bhv, t)
+        alpha_samp = funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
 
         if Nbh_core < 4:
             if len(bhv[~np.isnan(bhv[:, 0])]) < 4:
-                aux_data = get_aux_data(bhv, cbh, t_fin)
+                aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
                 aux_data["mbhmaxmax"] = mbhmaxmax
-                return _format_output(bbh, output_dataframe, aux_data)  # Exit if there are no BHs in the core
+                return _format_output(bbh, self.output_dataframe, aux_data)  # Exit if there are no BHs in the core
             else:
                 t += np.min(bhv[:, 2][bhv[:, 2] > 0])
                 continue
@@ -208,16 +164,16 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
         assert m2 <= m1, "The primary should always be the most massive"
 
         # Update cluster properties
-        if t > t_fin:
-            aux_data = get_aux_data(bhv, cbh, t_fin)
+        if t > t_fin_yr:
+            aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
             aux_data["mbhmaxmax"] = mbhmaxmax
-            return _format_output(bbh, output_dataframe, aux_data)
-        rh = cbh.rh_interp(t / 1e9)
-        Mcl = cbh.M_interp(t / 1e9)
-        Mbh = max(cbh.Mbh_interp(t / 1e9), 0)
-        mmean = cbh.m_interp(t / 1e9)
-        mst = cbh.mst_interp(t / 1e9)
-        Edot = cbh.Edot_rlx_interp(t / 1e9)
+            return _format_output(bbh, self.output_dataframe, aux_data)
+        rh = self.cluster.rh_interp(t / 1e9)
+        Mcl = self.cluster.M_interp(t / 1e9)
+        Mbh = max(self.cluster.Mbh_interp(t / 1e9), 0)
+        mmean = self.cluster.m_interp(t / 1e9)
+        mst = self.cluster.mst_interp(t / 1e9)
+        Edot = self.cluster.Edot_rlx_interp(t / 1e9)
         Edot *= PC_TO_AU ** 2 * 1e-18  # Convert to AU^2 Msun / yr^3
 
         lastBH = False
@@ -237,15 +193,15 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
         merger_type = None
 
         while not lastBH:
-            m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = cbhbd.funcs.get_mbh_params(bhv, t)
-            alpha_samp = cbhbd.funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
+            m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = funcs.get_mbh_params(bhv, t)
+            alpha_samp = funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
             Nbh = Nbh0 - N3ej
 
             if Nbh_core < 4:
                 if len(bhv[~np.isnan(bhv[:, 0])]) < 4:
-                    aux_data = get_aux_data(bhv, cbh, t_fin)
+                    aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
                     aux_data["mbhmaxmax"] = mbhmaxmax
-                    return _format_output(bbh, output_dataframe, aux_data)  # Exit if there are no BHs in the core
+                    return _format_output(bbh, self.output_dataframe, aux_data)  # Exit if there are no BHs in the core
                 else:
                     t += np.min(bhv[:, 2][bhv[:, 2] > 0])
                     break
@@ -254,9 +210,9 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
                 raise ValueError(f"Error in determining m range, found {mbhmax=} ({kmax=}) and {mbhmin=} ({kmin=})")
 
             if N3ej + 3 >= Nbh0:
-                aux_data = get_aux_data(bhv, cbh, t_fin)
+                aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
                 aux_data["mbhmaxmax"] = mbhmaxmax
-                return _format_output(bbh, output_dataframe, aux_data)  # Exit if there are no BHs remaining
+                return _format_output(bbh, self.output_dataframe, aux_data)  # Exit if there are no BHs remaining
 
             # BINARY-SINGLE INTERACTION
             # Sample m_3 according to a power law p(m_3) \propto m_3^{alpha_3}
@@ -298,8 +254,8 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
                 break
 
             # Exchanges
-            Ppres = cbhbd.funcs.prob_esc(m1, m2, m3)
-            Pex2 = cbhbd.funcs.prob_esc(m1, m3, m2)
+            Ppres = funcs.prob_esc(m1, m2, m3)
+            Pex2 = funcs.prob_esc(m1, m3, m2)
             exchange_outcomes = ["preservation", "exchange_1", "exchange_2"]
             exchange_outcome = np.random.choice(exchange_outcomes, p=[Ppres, max(0.0, 1 - Pex2 - Ppres), Pex2])
             if exchange_outcome != "preservation":
@@ -327,7 +283,7 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
                 N3ej += 1
                 M3ej += m3
                 bhv[k3, 0] = np.nan
-                m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = cbhbd.funcs.get_mbh_params(bhv, t)
+                m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = funcs.get_mbh_params(bhv, t)
 
             # Ejection of binaries
             if vbin > v_esc:
@@ -432,7 +388,7 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
 
         if Nbh_core < 4:
             continue
-        if M3ej > fbh0 * M0:
+        if M3ej > fbh0 * self.M0:
             lastBH = True
 
         if m1 == 0 or m2 == 0:
@@ -447,10 +403,10 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
 
         # Compute GW recoil kick and spins
         load_remnant_model = remnant_model is None
-        load_remnant_model |= simple_remnant_model and isinstance(remnant_model, cbhbd.remnant.RemnantModel)
-        load_remnant_model |= not simple_remnant_model and isinstance(remnant_model, cbhbd.remnant.SimpleRemnantModel)
+        load_remnant_model |= self.simple_remnant_model and isinstance(remnant_model, remnant.RemnantModel)
+        load_remnant_model |= not self.simple_remnant_model and isinstance(remnant_model, remnant.SimpleRemnantModel)
         if load_remnant_model:
-            remnant_model = cbhbd.remnant.SimpleRemnantModel() if simple_remnant_model else cbhbd.remnant.RemnantModel()
+            remnant_model = remnant.SimpleRemnantModel() if self.simple_remnant_model else remnant.RemnantModel()
         m_rem, chi_f, v_kick = remnant_model.get_remnant(m1, m2, S1, S2)
         mbhmaxmax = max(mbhmaxmax, m_rem)
 
@@ -459,7 +415,7 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
         t_sim = t
         if v_kick < v_esc and merger_type != MergerOutcome.Ejected:  # If the binary is retained, form a merger product BH
             # Recompute hardening timescale if retained
-            t = cbhbd.funcs.get_sync_time(cbh, fbh0, M0, M3ej - m1 - m2, t)
+            t = funcs.get_sync_time(self.cluster, fbh0, self.M0, M3ej - m1 - m2, t)
 
             rin = rh * np.sqrt((v_esc ** 2 / (v_esc ** 2 - v_kick ** 2)) ** 2 - 1)
             tfric = 7.6e8 * (rin / 1.) ** 2 * (vd / 200.) * (10. / (m1 + m2))
@@ -476,10 +432,10 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
 
         else:  # If the binary is ejected or the end product is ejected then remove members
             M3ej += m1 + m2
-            if M3ej > fbh0 * M0:
+            if M3ej > fbh0 * self.M0:
                 lastBH = True
 
-            t = cbhbd.funcs.get_sync_time(cbh, fbh0, M0, M3ej, t)
+            t = funcs.get_sync_time(self.cluster, fbh0, self.M0, M3ej, t)
 
             N3ej += 2
 
@@ -500,34 +456,31 @@ def _run_model(t_fin, M0, Z, rhoh0, SN_model, simple_remnant_model, rg, verbose,
                     "m1": m1,  # 2 Mass of primary BH [Msun]
                     "m2": m2,  # 3 Mass of secondary BH [Msun]
                     "e": e,  # 4 Eccentricity of binary just before GW radiation takes over
-                    "M0": M0,  # 5 Initial cluster mass [Msun]
                     "merger_type": merger_type,  # 6 Merger type [cbhbd.funcs.MergerOutcome]
-                    "t_fin": t_fin0,  # 7 Look-back time of formation [yr]
                     "rh": rh,  # 8 Half-mass radius at t_sim [pc]
                     "v_kick": v_kick,  # 9 Recoil kick [km/s]
                     "v_esc": v_esc,  # 10 Escape velocity of the cluster at t_sim [km/s]
                     "chi_f": chi_f,  # 11 Final remnant spin
                     "S1": S1,  # 12 Spin of primary BH
                     "S2": S2,  # 13 Spin of secondary BH
-                    "Z": Z,  # 14 Cluster metallicity
                     "a": a,  # 15 Semimajor axis before GW radiation takes over [AU]
                     "gen": round(max(gen1, gen2)),  # 16 Generation of merger
                     "Mbh": Mbh,  # 17 Total mass in BHs in the cluster at t_sim [Msun]
                     })
 
         if lastBH:
-            aux_data = get_aux_data(bhv, cbh, t_fin)
+            aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
             aux_data["mbhmaxmax"] = mbhmaxmax
-            return _format_output(bbh, output_dataframe, aux_data)
-    aux_data = get_aux_data(bhv, cbh, t_fin)
+            return _format_output(bbh, self.output_dataframe, aux_data)
+    aux_data = get_end_data(bhv, self.cluster, t_fin_yr)
     aux_data["mbhmaxmax"] = mbhmaxmax
-    return _format_output(bbh, output_dataframe, aux_data)
+    return _format_output(bbh, self.output_dataframe, aux_data)
 
 
 def _format_output(bbh, output_dataframe, aux_data):
     bbh = pd.DataFrame(bbh)
-    colnames = ["t_merge", "t_sim", "m1", "m2", "e", "M0", "merger_type", "t_fin", "rh", "v_kick", "v_esc",
-                "chi_f", "S1", "S2", "Z", "a", "gen", "Mbh"]
+    colnames = ["t_merge", "t_sim", "m1", "m2", "e", "merger_type", "rh", "v_kick", "v_esc",
+                "chi_f", "S1", "S2", "a", "gen", "Mbh"]
     assert len(bbh) == 0 or (bbh.columns.values == colnames).all(), f"Wrong column names in output"
     if len(bbh) == 0:
         bbh = pd.DataFrame(columns=colnames)
@@ -535,50 +488,49 @@ def _format_output(bbh, output_dataframe, aux_data):
     retval = bbh if output_dataframe else bbh.to_numpy()
     return retval, aux_data
 
-
-if __name__ == "__main__":
-    verbose = True
-
-    print("---------------- TEST RUN BEGIN ----------------")
-
-    merger_stats = {merger_type: [] for merger_type in MergerOutcome.get_outcomes()}
-    merger_stats["total"] = []
-
-    delta_t_arr = []
-    seeds = list(range(30))
-    for seed in seeds:
-        tst_start_time = time.time()
-
-        t_fin = 13
-        Mcl = 8e5
-        rg = 8
-        rh = 1
-        rho_h_i = (Mcl / 2) / ((4 / 3) * np.pi * rh ** 3)
-        Z = 0.003
-        bbh, _ = run_model(t_fin, Mcl, Z, rho_h_i, rg=rg, seed=seed, verbose=verbose)
-
-        tst_end_time = time.time()
-
-        delta_t_arr.append(tst_end_time - tst_start_time)
-        print(f"Run {seed}:")
-        for merger_type in MergerOutcome.get_outcomes():
-            Nm_type = (bbh.merger_type == merger_type).sum()
-            merger_stats[merger_type].append(Nm_type)
-            print(f"\t{merger_type:<20} {Nm_type}")
-
-        print(f"\ttotal \t {len(bbh)}")
-        merger_stats["total"].append(len(bbh))
-
-    print("\nTotal statistics:")
-    for merger_type in MergerOutcome.get_outcomes():
-        merger_stats_type = np.array(merger_stats[merger_type])
-        Nm_type = merger_stats_type.mean()
-        Nm_type_err = merger_stats_type.std()
-        print(f"\t{merger_type:<20} {Nm_type:.2f} ± {Nm_type_err:.1f}")
-
-    Nm_total = np.array(merger_stats["total"])
-    print(f"\ttotal \t {Nm_total.mean():.2f} ± {Nm_total.std():.1f}")
-
-    delta_t_arr = np.array(delta_t_arr)
-    print(f"\n Run time: ({delta_t_arr.mean():.4g} ± {delta_t_arr.std():.4g}) s per model")
-    print("---------------- TEST RUN END ----------------")
+# if __name__ == "__main__":
+#     verbose = True
+#
+#     print("---------------- TEST RUN BEGIN ----------------")
+#
+#     merger_stats = {merger_type: [] for merger_type in MergerOutcome.get_outcomes()}
+#     merger_stats["total"] = []
+#
+#     delta_t_arr = []
+#     seeds = list(range(30))
+#     for seed in seeds:
+#         tst_start_time = time.time()
+#
+#         t_end = 13
+#         Mcl = 8e5
+#         rg = 8
+#         rh = 1
+#         rho_h_i = (Mcl / 2) / ((4 / 3) * np.pi * rh ** 3)
+#         Z = 0.003
+#         bbh, _ = self.run_model(t_end, Mcl, Z, rho_h_i, rg=rg, seed=seed, verbose=verbose)
+#
+#         tst_end_time = time.time()
+#
+#         delta_t_arr.append(tst_end_time - tst_start_time)
+#         print(f"Run {seed}:")
+#         for merger_type in MergerOutcome.get_outcomes():
+#             Nm_type = (bbh.merger_type == merger_type).sum()
+#             merger_stats[merger_type].append(Nm_type)
+#             print(f"\t{merger_type:<20} {Nm_type}")
+#
+#         print(f"\ttotal \t {len(bbh)}")
+#         merger_stats["total"].append(len(bbh))
+#
+#     print("\nTotal statistics:")
+#     for merger_type in MergerOutcome.get_outcomes():
+#         merger_stats_type = np.array(merger_stats[merger_type])
+#         Nm_type = merger_stats_type.mean()
+#         Nm_type_err = merger_stats_type.std()
+#         print(f"\t{merger_type:<20} {Nm_type:.2f} ± {Nm_type_err:.1f}")
+#
+#     Nm_total = np.array(merger_stats["total"])
+#     print(f"\ttotal \t {Nm_total.mean():.2f} ± {Nm_total.std():.1f}")
+#
+#     delta_t_arr = np.array(delta_t_arr)
+#     print(f"\n Run time: ({delta_t_arr.mean():.4g} ± {delta_t_arr.std():.4g}) s per model")
+#     print("---------------- TEST RUN END ----------------")
