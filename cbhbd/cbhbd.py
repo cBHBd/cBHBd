@@ -1,11 +1,11 @@
 import numpy as np
-from . import clusterbh
-from . import bhbdynamics
+from . import cluster
+from . import mergers
 
 
 class CBHBD:
     def __init__(self, **kwargs):
-        self._run_mergers = bhbdynamics._run_mergers
+        self._run_mergers = mergers._run_mergers
 
         self.tend = 13.8e3  # [Myr] Final time instance for integration. Here taken to be a Hubble time.
         self.M0 = None  # [Msun] Initial mass of the cluster.
@@ -69,7 +69,7 @@ class CBHBD:
             raise ValueError("Please provide either M0 or N. "
                              "To change the mean mass, modify the IMF breaks and limits (m_break) or slopes (a_slope)")
         if self.m0 is None:
-            self.m0 = clusterbh.initial_average_mass(self.a_slopes, self.m_breaks)
+            self.m0 = cluster.initial_average_mass(self.a_slopes, self.m_breaks)
         if self.M0 is None:
             self.M0 = self.m0 * self.N
         else:
@@ -119,7 +119,7 @@ class CBHBD:
                 raise err
 
         else:
-            self.cluster = clusterbh.ClusterBH(**kwargs)
+            self.cluster = cluster.Cluster(**kwargs)
 
 
 if __name__ == "__main__":

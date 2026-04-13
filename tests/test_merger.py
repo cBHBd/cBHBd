@@ -1,4 +1,4 @@
-import cbhbd.clusterbh
+import cbhbd.cluster
 import numpy as np
 
 

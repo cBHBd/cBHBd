@@ -3,7 +3,7 @@ import pandas as pd
 from numpy.random import random
 
 from . import funcs
-from . import clusterbh
+from . import cluster
 from . import remnant
 from .funcs import MergerOutcome
 
@@ -83,7 +83,7 @@ def _run_mergers(self, **kwargs):
 
     # Construct the BH IMF
     # FIXME: Mbh_min=0,  MprogIMBH=Mprog, MIMBH=MIMBH, NIMBH=NIMBH,
-    self.cluster = clusterbh.ClusterBH(**kwargs)
+    self.cluster = cluster.Cluster(**kwargs)
     t_fin_yr = min(t_fin_yr, self.cluster.t.max() * 1e9)
 
     # Build array with BH properties for retained stellar-mass BHs

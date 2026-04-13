@@ -20,7 +20,7 @@ warnings.simplefilter("ignore", category=RuntimeWarning)
 """
 
 
-class ClusterBH:
+class Cluster:
     def __init__(self, **kwargs):
         """
         Initialize the star cluster model.
