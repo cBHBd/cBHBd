@@ -2,15 +2,18 @@
 
 A fast code for simulating star clusters and black hole dynamics.
 
-ᴄBHBᴅ is composed of two coupled codes
+ᴄBHBᴅ can be used for
 
-1) ᴄʟᴜsᴛᴇʀBH: Fast code for the evolution of a star cluster with black holes in a tidal field
-2) BHBᴅʏɴᴀᴍɪᴄs: Fast code for population synthesis of binary black hole mergers in a star cluster
+1) the evolution of a star cluster with black holes in a tidal field
+2) population synthesis of binary black hole mergers in a time-evolving star cluster
 
 If you use ᴄBHBᴅ in any publication, please cite it as follows:
 > ᴄBHBᴅ (Antonini & Gieles [2020](https://ui.adsabs.harvard.edu/abs/2020MNRAS.492.2936A/abstract); Antonini et
 > al. [2023](https://ui.adsabs.harvard.edu/abs/2023MNRAS.522..466A/abstract)), with the updates of Fronimos Pouliasis et
 > al. (2025)
+
+ᴄBHBᴅ stands for the combination of ᴄʟᴜsᴛᴇʀBH (the code for the cluster evolution) and BHBᴅʏɴᴀᴍɪᴄs (the code for the
+black hole mergers).
 
 ## Installation
 
@@ -28,40 +31,21 @@ You can also simply download the ᴄBHBᴅ package source from this repository a
 git clone https://github.com/cBHBd/cBHBd
 ```
 
-## Running ᴄʟᴜsᴛᴇʀBH
+## Running ᴄBHBᴅ
 
-You can run ᴄʟᴜsᴛᴇʀBH as
-
-```
-import cbhbd.clusterbh
-
-cbhbd.clusterbh.ClusterBH(N, rhoh)
-```
-
-with the following arguments:
-
-- `N`: Initial number of stars
-- `rhoh`: Half-mass density [Msun/pc^3]
-- `kwargs`: Additional parameters to override defaults (see code comments)
-
-## Running BHBᴅʏɴᴀᴍɪᴄs
-
-You can run BHBᴅʏɴᴀᴍɪᴄs as
+You can run ᴄBHBᴅ as
 
 ```
-import cbhbd.bhbdynamics
+import cbhbd.cbhbd
 
-cbhbd.bhbdynamics.run_model(t_fin, Mcl0, Z, Z_file, rhoh0)
+cbhbd.cbhbd.CBHBD()
 ```
 
 with the following arguments:
 
-- `t_fin`: Final time of the simulation [Gyr]
-- `Mcl0`: Initial mass of the cluster [Msun]
-- `Z`: Metallicity
-- `rhoh0`: Initial density within the half-mass radius [Msun/pc^3]
-- `rg`: Galactocentric radius [kpc]
-- `output_dataframe`: If `True`, return is a pandas dataframe, otherwise a list
-- `verbose`: If `True`, print extra output.
-- `seed`: Seed for random number generator. Use `None` to get a random seed.
-- `kwargs`: Additional arguments to pass to clusterBH.
+- `N`: Initial number of stars _or_ `M0`: Initial cluster mass
+- `rhoh0`: Initial half-mass density [Msun/pc^3] _or_ `rh0`: Initial half-mass radius [pc]
+- `Z`: Metallicity _or_ `FeH`: Metallicity as in [Fe/H]
+- `kwargs`: Additional parameters to override defaults (see code comments in the `CBHBD` class and the `Cluster` class)
+
+If you only want to run the cluster evolution, you can use `compute_mergers=False` for efficiency
