@@ -57,7 +57,7 @@ See `cluster.py` for the full documentation.
 
 ```
 c.cluster.Mst # Total stellar mass in the cluster as function of time
-c.cluster.M_BH # Total BH mass in the cluster as function of time
+c.cluster.Mbh # Total BH mass in the cluster as function of time
 c.cluster.rh # Half-mass radius of the cluster as function of time
 ...
 c.cluster.Mst_interp(t) # For convenience, you can also interpolate the cluster properties at any time using the interpolating functions
