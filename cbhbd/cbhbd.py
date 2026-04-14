@@ -115,7 +115,7 @@ class CBHBD:
     def _run(self, **kwargs):
         if self.compute_mergers:
             try:
-                self.mergers = self._run_mergers(self, **kwargs)
+                self.mergers = self._run_mergers(self, **kwargs)  # TODO: allow output to file like in clusterBH
                 self._get_IMBH_data(self)
             except Exception as err:
                 print("Error in model with", flush=True)

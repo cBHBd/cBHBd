@@ -36,9 +36,9 @@ git clone https://github.com/cBHBd/cBHBd
 You can run ᴄBHBᴅ as
 
 ```
-import cbhbd.cbhbd
+from cbhbd.cbhbd import CBHBD
 
-cbhbd.cbhbd.CBHBD()
+c = CBHBD()
 ```
 
 with the following arguments:
@@ -49,3 +49,27 @@ with the following arguments:
 - `kwargs`: Additional parameters to override defaults (see code comments in the `CBHBD` class and the `Cluster` class)
 
 If you only want to run the cluster evolution, you can use `compute_mergers=False` for efficiency
+
+## Analysing the ᴄBHBᴅ output
+
+The output of the simulations is stored in a `CBHBD` object. The cluster properties can be accessed from `c.cluster`.
+See `cluster.py` for the full documentation.
+
+```
+c.cluster.Mst # Total stellar mass in the cluster as function of time
+c.cluster.M_BH # Total BH mass in the cluster as function of time
+c.cluster.rh # Half-mass radius of the cluster as function of time
+...
+c.cluster.Mst_interp(t) # For convenience, you can also interpolate the cluster properties at any time using the interpolating functions
+```
+
+The merger properties are stored in a `pandas.Dataframe` in `c.mergers`. See `mergers.py` for the full documentation.
+
+```
+c.mergers # The merger data, use print(c.mergers) to see a table of the merger properties
+c.mergers.m1 # The mass of the primary
+c.mergers.merger_type # The type of merger (ejected, gw_capture, ...), see the code for the full documentation
+... 
+c.mergers.to_numpy() # You can also export the merger data to a numpy array
+```
+
