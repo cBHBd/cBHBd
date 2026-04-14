@@ -38,7 +38,7 @@ You can run ᴄBHBᴅ as
 ```
 from cbhbd.cbhbd import CBHBD
 
-c = CBHBD()
+c = CBHBD(...)
 ```
 
 with the following arguments:
