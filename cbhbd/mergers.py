@@ -83,7 +83,7 @@ def _run_mergers(self, **kwargs):
         print(f"\t Number of BHs after natal kicks: {Nbh0}")
 
     if Nbh0 < 3:  # Return if there are not enough BHs
-        return _format_merger_output(bbh, self.output_dataframe)
+        return _format_merger_output(bbh)
 
     mbhmean = Mtot / Nbh0
     fbh0 = Mtot / self.M0
@@ -110,7 +110,7 @@ def _run_mergers(self, **kwargs):
 
         if Nbh_core < 4:
             if len(self.bhv[~np.isnan(self.bhv[:, 0])]) < 4:
-                return _format_merger_output(bbh, self.output_dataframe)  # Exit if there are no BHs in the core
+                return _format_merger_output(bbh)  # Exit if there are no BHs in the core
             else:
                 t += np.min(self.bhv[:, 2][self.bhv[:, 2] > 0])
                 continue
@@ -146,7 +146,7 @@ def _run_mergers(self, **kwargs):
 
         # Update cluster properties
         if t > self.cluster.tfin * 1e9:
-            return _format_merger_output(bbh, self.output_dataframe)
+            return _format_merger_output(bbh)
         rh = self.cluster.rh_interp(t / 1e9)
         Mcl = self.cluster.M_interp(t / 1e9)
         Mbh = max(self.cluster.Mbh_interp(t / 1e9), 0)
@@ -178,7 +178,7 @@ def _run_mergers(self, **kwargs):
 
             if Nbh_core < 4:
                 if len(self.bhv[~np.isnan(self.bhv[:, 0])]) < 4:
-                    return _format_merger_output(bbh, self.output_dataframe)  # Exit if there are no BHs in the core
+                    return _format_merger_output(bbh)  # Exit if there are no BHs in the core
                 else:
                     t += np.min(self.bhv[:, 2][self.bhv[:, 2] > 0])
                     break
@@ -187,7 +187,7 @@ def _run_mergers(self, **kwargs):
                 raise ValueError(f"Error in determining m range, found {mbhmax=} ({kmax=}) and {mbhmin=} ({kmin=})")
 
             if N3ej + 3 >= Nbh0:
-                return _format_merger_output(bbh, self.output_dataframe)  # Exit if there are no BHs remaining
+                return _format_merger_output(bbh)  # Exit if there are no BHs remaining
 
             # BINARY-SINGLE INTERACTION
             # Sample m_3 according to a power law p(m_3) \propto m_3^{alpha_3}
@@ -460,11 +460,11 @@ def _run_mergers(self, **kwargs):
                     })
 
         if lastBH:
-            return _format_merger_output(bbh, self.output_dataframe)
-    return _format_merger_output(bbh, self.output_dataframe)
+            return _format_merger_output(bbh)
+    return _format_merger_output(bbh)
 
 
-def _format_merger_output(bbh, output_dataframe):
+def _format_merger_output(bbh):
     bbh = pd.DataFrame(bbh)
     colnames = ["t_merge", "t_sim", "m1", "m2", "m_rem", "e", "merger_type", "rh", "v_kick", "v_esc",
                 "chi_f", "S1", "S2", "a", "gen", "Mbh"]
@@ -472,8 +472,7 @@ def _format_merger_output(bbh, output_dataframe):
     if len(bbh) == 0:
         bbh = pd.DataFrame(columns=colnames)
 
-    retval = bbh if output_dataframe else bbh.to_numpy()
-    return retval
+    return bbh
 
 # if __name__ == "__main__":
 #     verbose = True

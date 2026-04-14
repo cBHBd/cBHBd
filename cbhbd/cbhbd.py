@@ -24,7 +24,6 @@ class CBHBD:
 
         self.verbose = True  # If True, print extra output.
         self.seed = None  # Seed for random number generator. Use None to get a random seed.
-        self.output_dataframe = True  # If True, self.mergers is a pandas dataframe, otherwise a list
         self.SN_model = "rapid"  # Model for the supernova explosion ["rapid" or "delay"]
         self.simple_remnant_model = True  # If True, use a simplified GW remnant model. If False, use the full NR GW remnant model.
         self.compute_mergers = True  # If true, compute the mergers. If false, only compute the cluster model.
