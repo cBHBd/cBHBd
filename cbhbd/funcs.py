@@ -60,12 +60,9 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, SN_model, sigma):
         nsamp = int(i * Mbh / 10)
 
         # Sample BH masses and kicks
-        vkick_unscaled = np.linalg.norm(np.random.normal(loc=0.0, scale=sigma, size=(nsamp, 3)), axis=1)
         mproj = sample_power_law(ifmr.BH_mi[0], mmax, alpha, nsamp)
         mbh = ifmr.predict(mproj)
-        fb_fun = ssptools.kicks._F12_fallback_frac(FeH, SNe_method=SN_model)
-        fb = np.clip(fb_fun(mbh), 0.0, 1 - 1e-16)
-        vkick = vkick_unscaled * (1 - fb)
+        vkick = ssptools.kicks.maxwellian_kick_v(mbh, FeH=FeH, SNe_method=SN_model, vdisp=sigma)
 
         # Remove kicked BHs
         mbh = mbh[vkick <= v_esc0]
