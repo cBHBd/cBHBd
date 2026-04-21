@@ -41,6 +41,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libgsl-dev
           python -m pip install --upgrade pip
           pip install pytest .
           pip install surfinBH bhptnrremnant h5py lalsuite
