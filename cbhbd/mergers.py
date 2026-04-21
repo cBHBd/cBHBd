@@ -387,14 +387,15 @@ def _run_mergers(self, **kwargs):
         assert not np.isnan(t_gw), f"Error in {t_gw = }"
 
         # Compute GW recoil kick and spins
-        if self.simple_remnant_model:
-            if CBHBD.remnant_model_simple is None:
-                CBHBD.remnant_model_simple = remnant.SimpleRemnantModel()
-            m_rem, chi_f, v_kick = CBHBD.remnant_model_simple.get_remnant(m1, m2, S1, S2)
-        else:
-            if CBHBD.remnant_model_NR is None:
-                CBHBD.remnant_model_NR = remnant.RemnantModel()
-            m_rem, chi_f, v_kick = CBHBD.remnant_model_NR.get_remnant(m1, m2, S1, S2)
+        if CBHBD.remnant_models[self.remnant_model] is None:
+            try:
+                CBHBD.remnant_models[self.remnant_model] = remnant.available_remnant_models[self.remnant_model]()
+            except Exception as err:
+                raise ImportError(f"Error in loading remnant model {self.remnant_model}. If this can not be fixed, "
+                                  f"consider using the (less accurate) remnant_model='RemnantModelSimple'\n\n{err}")
+
+        m_rem, chi_f, v_kick = CBHBD.remnant_models[self.remnant_model].get_remnant(m1, m2, S1, S2)
+
         assert 1 >= chi_f >= 0, f"Error in {chi_f = }"
         t_sim = t
         if v_kick < v_esc and merger_type != MergerOutcome.Ejected:  # If the binary is retained, form a merger product BH

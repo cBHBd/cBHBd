@@ -1,11 +1,11 @@
 import numpy as np
 from . import cluster
 from . import mergers
+from . import remnant
 
 
 class CBHBD:
-    remnant_model_simple = None
-    remnant_model_NR = None
+    remnant_models = {k: None for k in remnant.available_remnant_models.keys()}
 
     def __init__(self, **kwargs):
         self._run_mergers = mergers._run_mergers
@@ -25,7 +25,7 @@ class CBHBD:
         self.verbose = True  # If True, print extra output.
         self.seed = None  # Seed for random number generator. Use None to get a random seed.
         self.SN_model = "rapid"  # Model for the supernova explosion ["rapid" or "delay"]
-        self.simple_remnant_model = True  # If True, use a simplified GW remnant model. If False, use the full NR GW remnant model.
+        self.remnant_model = "RemnantModelVarma19Islam23"  # GW remnant model, see remnant.py for available options.
         self.compute_mergers = True  # If true, compute the mergers. If false, only compute the cluster model.
 
         self.dtout = None  # [Myr] Time step for integration. If None, computations are faster.
@@ -56,6 +56,7 @@ class CBHBD:
             for key, value in kwargs.items():
                 setattr(self, key, value)
 
+        assert self.remnant_model in remnant.available_remnant_models, f"Remnant model {self.remnant_models} not available, please choose from {remnant.available_remnant_models.keys()}"
         self._construct_input_params()
 
         # Add the unchanged defaults to kwargs, to then pass it to ClusterBH

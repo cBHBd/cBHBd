@@ -1,15 +1,43 @@
 import numpy as np
 import warnings
+import abc
 
 
-class RemnantModel:
+class RemnantModel(abc.ABC):
     def __init__(self):
+        pass
+
+    def print(self):
+        print(f"{self.__name__}:\n\n{self.get_description()}")
+
+    @abc.abstractmethod
+    def get_description(self):
+        return
+
+    @abc.abstractmethod
+    def get_remnant(self, m1, m2, S1, S2):
+        # Return the remnant mass, spin, and kick velocity of the merger product of a BBH with masses m1 and m2,
+        # and spins S1 and S2. Masses are in solar masses, spins are dimensionless and the kick velocity is in km/s
+        return
+
+
+class RemnantModelVarma19Islam23(RemnantModel):
+    def __init__(self):
+        super().__init__()
+        warnings.filterwarnings("ignore", "Wswiglal-redir-stdio")
         import surfinBH
         from BHPTNRremnant.remnant import BHPTNRSurRemnant
 
         self.nr_model_lowq = surfinBH.LoadFits("NRSur7dq4Remnant")
         self.nr_model_emr = BHPTNRSurRemnant()
         self.C_KM_S = 299792.458
+
+    def get_description(self):
+        return ("Model used in Chattopadhyay, Marín Pina et al. (2026) (https://arxiv.org/pdf/2604.09773). This model "
+                "uses NRSur7dq4Remnant (Varma et al. 2019) for mergers with a mass ratio q <= 6 (where q = m1/m2 and "
+                "m2 <= m1). This model accounts for the effects of masses and individual spin magnitudes and "
+                "orientations, but accuracy is not guaranteed at higher mass ratios. Instead, for mergers with q > 6, we"
+                " use the BHPTNRSurRemnant model (Islam et al. 2023), which can be extrapolated up to q ~ 1000.")
 
     def get_remnant(self, m1, m2, S1, S2):
         q = m1 / m2
@@ -40,9 +68,13 @@ class RemnantModel:
         return m_rem, chi_f, v_kick
 
 
-class SimpleRemnantModel:
+class RemnantModelSimple(RemnantModel):
     def __init__(self):
-        pass
+        super().__init__()
+
+    def get_description(self):
+        return ("Model used in Antonini et al. (2023) (https://arxiv.org/pdf/2208.01081). Less accurate than the other "
+                "models, but does not require external dependencies.")
 
     def _dotp(self, a, b):
         # Compute the dot product of two vectors
@@ -113,3 +145,61 @@ class SimpleRemnantModel:
         chiv = chit + q / (1 + q) ** 2 * ell * j
         chi_f = min(1., np.sqrt(chiv[0] ** 2 + chiv[1] ** 2 + chiv[2] ** 2))
         return m1 + m2, chi_f, v_kick
+
+
+class RemnantModelIslam26(RemnantModel):
+    def __init__(self):
+        super().__init__()
+        warnings.filterwarnings("ignore", "Wswiglal-redir-stdio")
+        import surfinBH
+        from BHPTNRremnant.remnant import BHPTNRSurRemnant
+        import gwModel_kick.gwModel_kick_aligned_spin
+        import gwModel_kick.gwModel_kick_prec
+        import os
+
+        self.nr_model_lowq = surfinBH.LoadFits("NRSur7dq4Remnant")
+        self.nr_model_emr = BHPTNRSurRemnant()
+        self.C_KM_S = 299792.458
+
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.flow, self.cfg = gwModel_kick.gwModel_kick_prec.load_gwModel_kick_prec_flow(dir_path)
+        self.nr_model_kick_q200 = gwModel_kick.gwModel_kick_aligned_spin.gwModel_kick_q200
+        self.nr_model_kick_prec = gwModel_kick.gwModel_kick_prec.sample_gwModel_kick_prec
+
+    def get_description(self):
+        return ("This model uses Islam et al. (2026) (https://arxiv.org/pdf/2603.10170) for the kick velocity, and "
+                "RemnantModelVarma19Islam23 for the remnant mass and spin.")
+
+    def get_remnant(self, m1, m2, S1, S2):
+        q = m1 / m2
+
+        if q <= 6:
+            theta_S1 = np.random.uniform(0, np.pi)
+            phi_S1 = np.random.uniform(0, 2 * np.pi)
+            theta_S2 = np.random.uniform(0, np.pi)
+            phi_S2 = np.random.uniform(0, 2 * np.pi)
+
+            S1_vec = S1 * np.array([np.sin(theta_S1) * np.cos(phi_S1),
+                                    np.sin(theta_S1) * np.sin(phi_S1),
+                                    np.cos(theta_S1)])
+            S2_vec = S2 * np.array([np.sin(theta_S2) * np.cos(phi_S2),
+                                    np.sin(theta_S2) * np.sin(phi_S2),
+                                    np.cos(theta_S2)])
+
+            warnings.filterwarnings("ignore", category=UserWarning)
+            m_rem, chi_f_vec, _, _, _, _ = self.nr_model_lowq.all(m1 / m2, S1_vec, S2_vec)
+            chi_f = np.linalg.norm(chi_f_vec)
+            warnings.filterwarnings("default", category=UserWarning)
+        else:
+            m_rem, _, chi_f, _, _, _, _, _ = self.nr_model_emr.evaluate_fit(q)
+        m_rem *= (m1 + m2)
+
+        if S1 == 0 and S2 == 0:
+            v_kick = self.nr_model_kick_q200(q, S1, S2, return_std=False)
+        else:
+            v_kick = self.nr_model_kick_prec(self.flow, self.cfg, q, S1, S2, num_samples=1)[0]
+
+        return m_rem, chi_f, v_kick
+
+
+available_remnant_models = {rm.__name__: rm for rm in RemnantModel.__subclasses__()}
