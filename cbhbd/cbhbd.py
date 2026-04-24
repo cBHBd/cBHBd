@@ -51,6 +51,9 @@ class CBHBD:
         # Number of bins per interval of the mass function.
         self.nbins = [5, 5, 20]
 
+        # Valid input parameters. Do not define more input params after this line.
+        self.cbhbd_params = [attr for attr in self.__dict__.keys() if attr[0] != "_"]
+
         # Read the user's input parameters
         if kwargs is not None:
             for key, value in kwargs.items():
@@ -113,12 +116,14 @@ class CBHBD:
             assert self.dense_output, "Mergers are only available when dense_output is enabled"
 
     def _run(self, **kwargs):
+        self.cluster = cluster.Cluster(**kwargs)
+
         if self.compute_mergers:
             try:
-                self.mergers = self._run_mergers(self, **kwargs)  # TODO: allow output to file like in clusterBH
+                self.mergers = self._run_mergers(self)  # TODO: allow output to file like in clusterBH
                 self._get_IMBH_data(self)
             except Exception as err:
-                print("Error in model with", flush=True)
+                print("Error in computing the mergers in model with", flush=True)
                 print(f"\t Mass = {self.M0} M_sun", flush=True)
                 print(f"\t Metallicity = {self.Z}", flush=True)
                 print(f"\t Final time = {self.tend} Myr", flush=True)
@@ -127,6 +132,3 @@ class CBHBD:
                 print(f"\t Seed = {self.seed}", flush=True)
                 print(err, flush=True)
                 raise err
-
-        else:
-            self.cluster = cluster.Cluster(**kwargs)

@@ -220,9 +220,14 @@ class Cluster:
         # All other arguments to be passed to InitialBHPopulation, including IFMR and natal kick options. See SSPtools documentation for details.
         self.ibh_kwargs = dict()
 
-        # Check input parameters, then proceed with the computations.
+        # Check input parameters, then proceed with the computations. Do not define more input params after this line.
+        self.cbhbd_params = kwargs["cbhbd_params"]
+        self.cbhbd_params.extend(list(self.__dict__.keys()))
+
         if kwargs is not None:
             for key, value in kwargs.items():
+                if key not in self.cbhbd_params:
+                    raise AttributeError(f"Invalid parameter: {key}")
                 setattr(self, key, value)
 
         self.tfin = None  # [Gyr] Final time of the simulation. Can be smaller than tend if e.g. the cluster dissolves

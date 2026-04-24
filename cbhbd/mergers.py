@@ -19,7 +19,7 @@ def _get_IMBH_data(self):
     self.genIMBH = self.bhv[kmax, 3]
 
 
-def _run_mergers(self, **kwargs):
+def _run_mergers(self):
     if self.verbose:
         print("Generating new model with")
         print(f"\t Mass = {self.M0:.2g} M_sun")
@@ -69,7 +69,7 @@ def _run_mergers(self, **kwargs):
 
     # Construct the BH IMF
     # FIXME: Mbh_min=0,  MprogIMBH=Mprog, MIMBH=MIMBH, NIMBH=NIMBH,
-    self.cluster = cluster.Cluster(**kwargs)
+    # self.cluster = cluster.Cluster(**kwargs)
 
     # Build array with BH properties for retained stellar-mass BHs
     Mtot, self.bhv = funcs.sample_BHs(self.cluster.Mbh[0] - MIMBH, v_esc0, self.m_breaks[-2], self.mmax,
