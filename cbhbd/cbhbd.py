@@ -67,6 +67,10 @@ class CBHBD:
             if attr[0] != "_":
                 kwargs[attr] = value
 
+        # Derived variables
+        self.mmin = self.m_breaks[0]
+        self.mmax = self.m_breaks[-1]
+
         # Output
         self.cluster, self.mergers = None, None
         self.mIMBH, self.chiIMBH, self.genIMBH = None, None, None  # Properties of the most massive BH in the cluster.
@@ -86,8 +90,6 @@ class CBHBD:
             self.M0 = self.m0 * self.N
         else:
             self.N = self.M0 / self.m0
-        self.mmin = self.m_breaks[0]
-        self.mmax = self.m_breaks[-1]
 
         # Construct the half-mass radius and density
         if (self.rh0 is None) == (self.rhoh0 is None):
