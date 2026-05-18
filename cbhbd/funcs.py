@@ -72,6 +72,9 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma):
 
         # Remove kicked BHs
         mbh = mbh[vkick <= v_esc0]
+        if len(mbh) == 0:
+            i += 1
+            continue
 
         # Fix the total mass in BHs to be as close as possible to Mbh
         mbh_cumsum = np.cumsum(mbh)
