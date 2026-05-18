@@ -4,5 +4,5 @@ temp/*
 *.png
 *.jpg
 test/*
-cbhbd/gwModel_kick
 __pycache__/
+/cbhbd/gwModel_kick/

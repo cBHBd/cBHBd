@@ -41,7 +41,7 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, SN_model, sigma):
         raise NotImplementedError(f"SN model {SN_model} not implemented.")
 
     # Load initial-final mass relation
-    ifmr = ssptools.ifmr.IFMR(FeH=FeH)
+    ifmr = ssptools.ifmr.IFMR(FeH=FeH, BH_method="sevn-rapid")  # FIXME: Do better the BH_method
 
     # Define limits of the IMF of the progenitor stars
     assert mmax > mmin, "mmax must be greater than mmin"
@@ -62,7 +62,10 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, SN_model, sigma):
         # Sample BH masses and kicks
         mproj = sample_power_law(ifmr.BH_mi[0], mmax, alpha, nsamp)
         mbh = ifmr.predict(mproj)
-        vkick = ssptools.kicks.maxwellian_kick_v(mbh, FeH=FeH, SNe_method=SN_model, vdisp=sigma)
+        mproj = mproj[mbh > 0.0]  # Remove massless remnants
+        mbh = mbh[mbh > 0.0]  # Remove massless remnants
+        vkick = ssptools.kicks.maxwellian_kick_v(mproj, FeH=FeH, SNe_method=f"sevn-{SN_model}",
+                                                 vdisp=sigma)  # FIXME: Improve IO in SNe_method
 
         # Remove kicked BHs
         mbh = mbh[vkick <= v_esc0]

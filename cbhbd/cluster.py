@@ -15,7 +15,7 @@ warnings.simplefilter("ignore", category=RuntimeWarning)
 
 """
 - The current parameters only work with the default settings. If a different model is chosen, a different set of values may be needed.
-- The default option requires the Simple Stellar Population package. To install it, run 'pip install astro-ssptools==2.1.0'. Version 2.1.0 uses Zsolar=0.02. If not, simply state ssp=False in kwargs before a run.
+- The default option requires the Simple Stellar Population package. To install it, run 'pip install astro-ssptools==3.1.0'. If not, simply state ssp=False in kwargs before a run.
   For more details, visit SMU-clusters/ssptools. 
 """
 
@@ -787,6 +787,7 @@ class Cluster:
 
             # Create BHMF.
             self.ibh_kwargs.setdefault('kick_vdisp', self.sigmans)  # Default arguments for ssp.
+            self.ibh_kwargs.setdefault('BH_IFMR_method', 'sevn-rapid')  # FIXME: Improve IO in SNe_method
 
             # Implement kicks, if activated, for this IMF, number of stars, with such metallicity, central escape velocity and BHMF conditions.
             self.ibh = ssptools.InitialBHPopulation.from_powerlaw(self.m_breaks, self.a_slopes, self.nbins, self.FeH,
