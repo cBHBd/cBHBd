@@ -146,8 +146,8 @@ class Cluster:
         self.rtol, self.atol = 1e-6, 1e-7  # Relative and absolute tolerance for integration.
 
         # Output.
-        self.output = False  # A Boolean parameter to save the results of integration along with a few important quantities.
-        self.outfile = "cluster.txt"  # File to save the results, if needed.
+        self.output_cluster = False  # A Boolean parameter to save the results of integration along with a few important quantities.
+        self.outfile_cluster = "cluster.txt"  # File to save the results, if needed.
 
         # Conditions.
         self.BH = None  # Defined in CBHBD
@@ -2028,7 +2028,7 @@ class Cluster:
             self.Edot_rlx_interp = lambda t: Edot_interp(t)
 
         # Checks if the results need to be saved. The default option is to save the solutions of the differential equations as well as the tidal radius and average masses of the two components. Additional inclusions are possible.
-        if self.output:
+        if self.output_cluster:
             # Defines table header.
             table_header = "# t[Gyrs] Mbh[msun] Mst[msun] rh[pc] rt[pc] RG[kpc] mbh[msun] mst[msun] mbh_max[msun]"
 
@@ -2037,7 +2037,7 @@ class Cluster:
                 (self.t, self.Mbh, self.Mst, self.rh, self.rt, self.RG, self.mbh, self.mst, self.mbh_max))
 
             # Writes data.
-            numpy.savetxt(self.outfile, data, header=table_header, fmt="%12.5e", comments="")
+            numpy.savetxt(self.outfile_cluster, data, header=table_header, fmt="%12.5e", comments="")
 
         self.tfin = min(self.tend * 1e3, self.t.max())
 

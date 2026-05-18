@@ -34,6 +34,9 @@ class CBHBD:
         self.ssp = True  # Condition to use the SSP tools to extract the BHMF at any moment. Default option uses such tools.
         self.kick = True  # Condition to include natal kicks. Affects the BH population obtained. Default option considers kicks.
 
+        self.output_mergers = False  # A Boolean parameter to save the mergers to a file
+        self.outfile_mergers = "mergers.txt"  # File to save the mergers, if needed.
+
         # The user can either specify the initial average mass beforehand, or it is extracted from the IMF.
         # If m0 is not None, the IMF must be well defined so that it matches.
         self.m0 = None  # [Msun] Average mass obtained for this particular IMF.
@@ -122,8 +125,10 @@ class CBHBD:
 
         if self.compute_mergers:
             try:
-                self.mergers = self._run_mergers(self)  # TODO: allow output to file like in clusterBH
+                self.mergers = self._run_mergers(self)
                 self._get_IMBH_data(self)
+                if self.output_mergers:
+                    self.mergers.to_csv(self.outfile_mergers, header=True, index=False)
             except Exception as err:
                 print("Error in computing the mergers in model with", flush=True)
                 print(f"\t Mass = {self.M0} M_sun", flush=True)
