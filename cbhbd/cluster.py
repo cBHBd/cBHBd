@@ -15,7 +15,7 @@ warnings.simplefilter("ignore", category=RuntimeWarning)
 
 """
 - The current parameters only work with the default settings. If a different model is chosen, a different set of values may be needed.
-- The default option requires the Simple Stellar Population package. To install it, run 'pip install astro-ssptools==3.1.0'. If not, simply state ssp=False in kwargs before a run.
+- The default option requires the Simple Stellar Population package. To install it, run 'pip install astro-ssptools==3.1.0'. Version 3.1.0 uses Zsolar=0.02 and includes PISN. If not, simply state ssp=False in kwargs before a run.
   For more details, visit SMU-clusters/ssptools. 
 """
 
@@ -46,7 +46,7 @@ class Cluster:
         self.rh0 = None  # Defined in CBHBD
         self.W0 = 7  # Central potential value.
         self.eta0 = 3.  # Initial value for mass segregation. For a homologous distribution of stars, set it equal to 3.
-        self.Nrlx0 = 0  # Numer of inital elapsed relaxatio.
+        self.Nrlx0 = 0  # Number of inital elapsed relaxatio.
 
         # BHMF. It is needed only if the user does not use the available Simple Stellar Population (SSP) tools.
         # The current treatment for the BHMF is a simple power-law. At each iteration after core collapse, the BHMF is updated. The upper mass decreases with time, as dictated by Mbh.
@@ -59,6 +59,8 @@ class Cluster:
         self.t_bhcreation = 8  # [Myr] Time required to create all BHs.
         self.N_points = 500  # Number of points used for even spacing.
         self.Mbh0, self.mbh0 = 1e-99, 1e-89  # [Msun, Msun]. We set the BH masses equal to 0. They are later extracted from the BHMF. If not, the cluster is evolved without BHs.
+        self.ifmr = "sevn-rapid"  # IFMR relation to be used if ssp is selected.
+        # TODO: Check that IFMR is not hardcoded
 
         # IMBH seeds
         self.MprogIMBH = 0.0
@@ -95,8 +97,8 @@ class Cluster:
         # _________________________________________________
 
         # Parameters fixed or fitted to N-body / Monte Carlo models.
-        self.zeta = 0.07275  # Energy loss per half-mass relaxation. It is assumed to be constant.
-        self.beta = 0.09657  # BH ejection rate from the core per relaxation, considered constant for all clusters, assuming a large BH population in the core, regardless of initial conditions. Shows the efficiency of ejections. Subjects to change in the following functions.
+        self.zeta = 0.08752  # Energy loss per half-mass relaxation. It is assumed to be constant.
+        self.beta = 0.06787  # BH ejection rate from the core per relaxation, considered constant for all clusters, assuming a large BH population in the core, regardless of initial conditions. Shows the efficiency of ejections. Subjects to change in the following functions.
         self.nu = 0.073  # Mass loss rate of stars due to stellar evolution. It is the same for all clusters and does not depend on metallicity. Changes can be applied in the following functions. Used with tsev only if ssp is False.
         self.tsev = 1.19  # [Myr]. Time instance when stars start evolving. Typically it should be a few Myrs.
         self.a0 = 1  # Fix zeroth order in ψ. In reality, it serves as the contribution of the stellar population to the half-mass mass spectrum.
@@ -104,9 +106,9 @@ class Cluster:
         self.a12 = 0.5769  # Second prefactor in ψ. Relates the mass ratio of BHs over the total average mass, within the half-mass radius and the total. It is the product of a11 and a12 that matters in the following computations.
         self.a3 = 1  # [Msun] Prefactor of average mass within the half-mass radius compared to the total. The values of a11, a12 and a3 are taken for clusters with long initial relaxations.
         self.n = 3.34  # Exponent in the power-law parametrization of tides. It determines how quickly different Virial radii lose mass. Its value relative to 1.5 indicates the rate at which mass is lost.
-        self.Rht = 0.07784  # Parameter for exponential tides. Can be used for other tidal models available.# Ratio of rh/rt, used to calculate the correct mass loss rate due to tides. It serves as a reference scale, not necessarily representing the final value of rh/rt.
-        self.xi0 = 0.20466  # Parameter for exponential tides. Can be used for other tidal models available.
-        self.ntrh = 1.2321  # Number of initial relaxations to compute core collapse instance. Marks also the transition from the unbalanced to the balanced phase.
+        self.Rht = 0.07107  # Parameter for exponential tides. Can be used for other tidal models available.# Ratio of rh/rt, used to calculate the correct mass loss rate due to tides. It serves as a reference scale, not necessarily representing the final value of rh/rt.
+        self.xi0 = 0.14715  # Parameter for exponential tides. Can be used for other tidal models available.
+        self.ntrh = 0.91621  # Number of initial relaxations to compute core collapse instance. Marks also the transition from the unbalanced to the balanced phase.
         self.alpha_ci = 0.0  # Initial ejection rate of stars, when BHs are present. Currently deactivated, as it only accounts for a small percentage of the total stellar mass loss each relaxation.
         self.alpha_cf = 0.0  # Final ejection rate of stars, when all BHs have been ejected (or the final BBH remains) and the stellar density increases in the core. Represented by different values, but in principle they may be equal.
         self.tilde_E = 1  # Value for (ε - ε_{crit}) / |ε_{crit}| that describes contribution of evaporated stars to the energy balance of the cluster. If 1, there is no contribution, if lower than one, it helps expand and dissolve the cluster.
@@ -120,12 +122,12 @@ class Cluster:
         self.b4 = 0.17  # Exponent for the BH ejection rate. Participates after a critical value, here denoted as fbh_crit.
         self.b5 = 0  # 0.4 # Second exponent for the BH ejection rate. Participates after a critical value for the BH fraction, here denoted as qbh_crit. It is deactivated for now.
         self.eta_min = 3  # Smallest value for parameter eta.
-        self.etaf = 4.88423  # Final parameter for mass segregation. Describes the maximum value for the level of segregation. It is universal for all clusters and appears at the moment of core collapse. In principle decreases with time. Currently deactivated.
+        self.etaf = 4.1741  # Final parameter for mass segregation. Describes the maximum value for the level of segregation. It is universal for all clusters and appears at the moment of core collapse. In principle decreases with time. Currently deactivated.
         self.aseg = 1  # Exponent used for mass segregation. Default to linear dependence on time.
         self.p = 0.1  # Parameter for finite time stellar evaporation from the Lagrange points. Relates escape time with relaxation and crossing time.
         self.fbh_crit = 0.005  # Critical value of the BH fraction to use in the ejection rate of BHs. Decreases the fractions E / M φ0 properly, which for BH fractions close/above O(1)% approximately can be treated as constant.
         self.qbh_crit = 25  # Ratio of mbh / m when the BH ejection rate starts decreasing. Also for the ratio E / M φ0, however now it is deactivated. Should introduce an effective metallicity dependence.
-        self.S0 = 0.74333  # Parameter used for describing BH ejections when close to equipartition. Useful for describing clusters with different metallicities using the same set of parameters, as well as for clusters with small BH populations which inevitably slow down the ejections to some extend.
+        self.S0 = 0.62868  # Parameter used for describing BH ejections when close to equipartition. Useful for describing clusters with different metallicities using the same set of parameters, as well as for clusters with small BH populations which inevitably slow down the ejections to some extend.
         self.lambda_exp = 10  # Parameter used for obtaining the correct exponent for parameter ψ as a function of the BH fraction. Uses an exponential fit to connect minimum and maximum values of b.
         self.S0_crit = 0.16  # Critical value for Spitzer's parameter.
         self.cg = 0  # Constant used for the contribution of the tidal field on the energy of the cluster.
@@ -787,7 +789,7 @@ class Cluster:
 
             # Create BHMF.
             self.ibh_kwargs.setdefault('kick_vdisp', self.sigmans)  # Default arguments for ssp.
-            self.ibh_kwargs.setdefault('BH_IFMR_method', 'sevn-rapid')  # FIXME: Improve IO in SNe_method
+            self.ibh_kwargs.setdefault('BH_IFMR_method',self.ifmr)  # Default IFMR.
 
             # Implement kicks, if activated, for this IMF, number of stars, with such metallicity, central escape velocity and BHMF conditions.
             self.ibh = ssptools.InitialBHPopulation.from_powerlaw(self.m_breaks, self.a_slopes, self.nbins, self.FeH,
@@ -2109,12 +2111,6 @@ def initial_average_mass(a_slopes, m_breaks):
     return stellar_mass / stellar_number  # [Msun]
 
 
-# Examples:
-# c = clusterBH(1e6, 1e4) # Evolves a cluster with N=1e6 stars, rhoh=1e4 Msun/pc^3
-# c = clusterBH(1e6, 1e4, finite_escape_time=True, escapers=True) # Evolves the same cluster but now stars are not evaporated instantaneously.
-# c = clusterBH(1e6, 1e4, ssp=False, tidal=False) # Evolves an isolated cluster with a power-law BHMF
-# c = clusterBH(1e6, 1e4, galactic_model='NFW', tidal_spiralling=True) # Evolves a cluster with shrinking galactocentric distance inside a different galactic potential.
-# c = clusterBH(1e6, 1e4, BH=False) # Evolves a cluster with no BHs.
 #######################################################################################################################################################################################################################################################
 r"""
 
@@ -2345,133 +2341,6 @@ Power-law: X2 = self.gammap - 1 - b
 They have been tested and agree with the current formulas in the dictionaries for b=0.
 The rest spherically symmetric potentials need numerical integration. NFW has a closed form using 3F2 hypergeometric function.
 If a power-law b(r) is selected, only the Isothermal Sphere has an analytical expression.
-
-Possible extensions: Include a more flexible IMF.
-
-def _Chabrier_IMF(self, segment_types, a_slopes, m_breaks):
-
-    # Input validation
-    if len(segment_types) != len(a_slopes):
-        raise ValueError(f"segment_types (len={len(segment_types)}) and a_slopes (len={len(a_slopes)}) must have same length")
-
-    if len(m_breaks) != len(segment_types) + 1:
-        raise ValueError(f"m_breaks (len={len(m_breaks)}) must have exactly one more element than segment_types (len={len(segment_types)})")
-
-    valid_types = {'lognormal', 'powerlaw'}
-    for i, seg_type in enumerate(segment_types):
-        if seg_type not in valid_types:
-            raise ValueError(f"Invalid segment type '{seg_type}' at index {i}. Must be 'lognormal' or 'powerlaw'")
-
-        # Validate parameter structure based on segment type
-        if seg_type == 'lognormal':
-            if not isinstance(a_slopes[i], tuple) or len(a_slopes[i]) != 3:
-                raise ValueError(f"Lognormal segment at index {i} requires tuple (A, log10_mc, sigma), got {a_slopes[i]}")
-        else:  # powerlaw
-            if not isinstance(a_slopes[i], (int, float)):
-                raise ValueError(f"Powerlaw segment at index {i} requires numeric slope, got {a_slopes[i]}")
-
-    def chabrier_lognormal_pdf(m, A, log10_mc, sigma):
-
-        return (A / (m * log(10) * sigma * sqrt(2 * pi))) * exp(-0.5 * ((log10(m) - log10_mc) / sigma) ** 2)
-
-    def chabrier_lognormal_integral(m_low, m_high, A, log10_mc, sigma):
-
-        from scipy.integrate import quad
-
-        def dNdm(m):
-            return (A / (m * log(10) * sigma * sqrt(2 * pi))) * exp(-0.5 * ((log10(m) - log10_mc) / sigma) ** 2)
-
-        def mass_density(m):
-            return m * dNdm(m)
-
-        num_integral, _ = quad(dNdm, m_low, m_high)
-        mass_integral, _ = quad(mass_density, m_low, m_high)
-
-        return num_integral, mass_integral
-
-    def powerlaw_pdf(m, alpha, C):
-
-        return C * m ** alpha
-
-    def powerlaw_integral(m_low, m_high, alpha, C):
-
-        def integrate_IMF(m_low, m_high, p):
-            if p == -1:
-                return log(m_high / m_low)
-            else:
-                return (m_high ** (p + 1) - m_low ** (p + 1)) / (p + 1)
-
-        # For power-law ξ(m) = C * m^alpha
-        num_integral = C * integrate_IMF(m_low, m_high, alpha)
-        mass_integral = C * integrate_IMF(m_low, m_high, alpha + 1)
-
-        return num_integral, mass_integral
-
-    # Calculate normalization constants for continuity
-    normalization_constants = [1.0]  # Start with first segment normalized to 1
-
-    # Ensure continuity at breakpoints
-    for i in range(1, len(m_breaks) - 1):
-        m_break = m_breaks[i]
-
-        # Get previous segment value at break point
-        prev_type = segment_types[i-1]
-        prev_params = a_slopes[i-1]
-        prev_norm = normalization_constants[-1]
-
-        if prev_type == 'lognormal':
-            A_prev, log10_mc_prev, sigma_prev = prev_params
-            prev_value = chabrier_lognormal_pdf(m_break, A_prev * prev_norm, log10_mc_prev, sigma_prev)
-            print(f"DEBUG: Break {i}: Previous segment (lognormal) PDF at m={m_break}: {prev_value}")
-        else:  # powerlaw
-            alpha_prev = prev_params
-            # For powerlaw: PDF(m) = C * m^alpha
-            prev_value = prev_norm * (m_break ** alpha_prev)
-            print(f"DEBUG: Break {i}: Previous segment (powerlaw) PDF at m={m_break}: {prev_value}")
-
-
-        # Calculate required normalization for current segment
-        curr_type = segment_types[i]
-        curr_params = a_slopes[i]
-
-        if curr_type == 'lognormal':
-            A_curr, log10_mc_curr, sigma_curr = curr_params
-            curr_base_value = chabrier_lognormal_pdf(m_break, A_curr, log10_mc_curr, sigma_curr)
-            normalization_constants.append(prev_value / curr_base_value)
-            print(f"DEBUG: Break {i}: Current segment (lognormal) base PDF: {curr_base_value}")
-        else:  # powerlaw
-            alpha_curr = curr_params
-            curr_base_value = m_break ** alpha_curr
-            normalization_constants.append(prev_value / curr_base_value)
-            print(f"DEBUG: Break {i}: Current segment (powerlaw) base PDF: {curr_base_value}")
-
-        print(f"DEBUG: Break {i}: Normalization constant for segment {i}: {normalization_constants[-1]}")
-
-    print(f"DEBUG: Final normalization constants: {normalization_constants}")
-
-    # Integrate over all segments
-    total_mass = 0
-    total_number = 0
-
-    for i in range(len(segment_types)):
-        m_low = m_breaks[i]
-        m_high = m_breaks[i + 1]
-        seg_type = segment_types[i]
-        params = a_slopes[i]
-        C_i = normalization_constants[i]
-
-        if seg_type == 'lognormal':
-            A, log10_mc, sigma = params
-            num_int, mass_int = chabrier_lognormal_integral(m_low, m_high, A * C_i, log10_mc, sigma)
-            total_number += num_int
-            total_mass += mass_int
-        else:  # powerlaw
-            alpha = params
-            num_int, mass_int = powerlaw_integral(m_low, m_high, alpha, C_i)
-            total_number += num_int
-            total_mass += mass_int
-
-    return total_mass / total_number
 
 
 """
