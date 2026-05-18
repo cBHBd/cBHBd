@@ -24,9 +24,9 @@ class CBHBD:
 
         self.verbose = True  # If True, print extra output.
         self.seed = None  # Seed for random number generator. Use None to get a random seed.
-        self.SN_model = "rapid"  # Model for the supernova explosion ["rapid" or "delay"]
         self.remnant_model = "RemnantModelVarma19Islam23"  # GW remnant model, see remnant.py for available options.
         self.compute_mergers = True  # If true, compute the mergers. If false, only compute the cluster model.
+        self.ifmr = "sevn-rapid"  # IFMR relation to be used if ssp is selected.
 
         self.dtout = None  # [Myr] Time step for integration. If None, computations are faster.
         self.dense_output = True  # Condition for solve_ivp to give continuous solutions. Facilitates interpolation. Can be used instead of specifying t_eval. Necessary if compute_mergers==True.
@@ -130,7 +130,7 @@ class CBHBD:
                 print(f"\t Metallicity = {self.Z}", flush=True)
                 print(f"\t Final time = {self.tend} Myr", flush=True)
                 print(f"\t Initial density = {self.rhoh0:.3g} M_sun/pc^3", flush=True)
-                print(f"\t SN model = {self.SN_model}", flush=True)
+                print(f"\t IFMR model = {self.ifmr}", flush=True)
                 print(f"\t Seed = {self.seed}", flush=True)
                 print(err, flush=True)
                 raise err

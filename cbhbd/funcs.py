@@ -31,17 +31,21 @@ def sample_power_law(xmin, xmax, alpha, size):
     return (-(xmin ** (1 + alpha) * (-1 + r)) + xmax ** (1 + alpha) * r) ** (1 / (1 + alpha))
 
 
-def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, SN_model, sigma):
+def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma):
     # Sample the original population of stellar-mass BHs. The total mass of the population is (approximately) Mbh.
     # Remove BHs with a kick velocity greater than v_esc0. The progenitors follow an IMF with slope alpha between mmin
-    # and mmax (possibly with different slopes at lower masses). FeH is the iron abundance, SN_model is the supernova
-    # prescription, and sigma is the parameter of the Maxwellian distribution of kick velocities
-
-    if SN_model != "rapid" and SN_model != "delay":
-        raise NotImplementedError(f"SN model {SN_model} not implemented.")
+    # and mmax (possibly with different slopes at lower masses). FeH is the iron abundance, ifmr_str is the
+    # initial-final mass relation after stellar evolution (including supernova prescriptions), and sigma is the
+    # parameter of the Maxwellian distribution of kick velocities
 
     # Load initial-final mass relation
-    ifmr = ssptools.ifmr.IFMR(FeH=FeH, BH_method="sevn-rapid")  # FIXME: Do better the BH_method
+    if "rapid" in ifmr_str:
+        SN_method = "rapid"
+    elif "delay" in ifmr_str:
+        SN_method = "delayed"
+    else:
+        raise NotImplementedError(f"For IFMR {ifmr_str}, unknown SN_method (must contain rapid or delay)")
+    ifmr = ssptools.ifmr.IFMR(FeH=FeH, BH_method=ifmr_str)
 
     # Define limits of the IMF of the progenitor stars
     assert mmax > mmin, "mmax must be greater than mmin"
@@ -64,8 +68,7 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, SN_model, sigma):
         mbh = ifmr.predict(mproj)
         mproj = mproj[mbh > 0.0]  # Remove massless remnants
         mbh = mbh[mbh > 0.0]  # Remove massless remnants
-        vkick = ssptools.kicks.maxwellian_kick_v(mproj, FeH=FeH, SNe_method=f"sevn-{SN_model}",
-                                                 vdisp=sigma)  # FIXME: Improve IO in SNe_method
+        vkick = ssptools.kicks.maxwellian_kick_v(mproj, FeH=FeH, SNe_method=SN_method, vdisp=sigma)
 
         # Remove kicked BHs
         mbh = mbh[vkick <= v_esc0]

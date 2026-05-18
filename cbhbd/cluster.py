@@ -59,8 +59,7 @@ class Cluster:
         self.t_bhcreation = 8  # [Myr] Time required to create all BHs.
         self.N_points = 500  # Number of points used for even spacing.
         self.Mbh0, self.mbh0 = 1e-99, 1e-89  # [Msun, Msun]. We set the BH masses equal to 0. They are later extracted from the BHMF. If not, the cluster is evolved without BHs.
-        self.ifmr = "sevn-rapid"  # IFMR relation to be used if ssp is selected.
-        # TODO: Check that IFMR is not hardcoded
+        self.ifmr = None  # Defined in CBHBD class
 
         # IMBH seeds
         self.MprogIMBH = 0.0
@@ -789,7 +788,7 @@ class Cluster:
 
             # Create BHMF.
             self.ibh_kwargs.setdefault('kick_vdisp', self.sigmans)  # Default arguments for ssp.
-            self.ibh_kwargs.setdefault('BH_IFMR_method',self.ifmr)  # Default IFMR.
+            self.ibh_kwargs.setdefault('BH_IFMR_method', self.ifmr)  # Default IFMR.
 
             # Implement kicks, if activated, for this IMF, number of stars, with such metallicity, central escape velocity and BHMF conditions.
             self.ibh = ssptools.InitialBHPopulation.from_powerlaw(self.m_breaks, self.a_slopes, self.nbins, self.FeH,

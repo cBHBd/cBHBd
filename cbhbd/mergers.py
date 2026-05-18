@@ -73,8 +73,7 @@ def _run_mergers(self):
 
     # Build array with BH properties for retained stellar-mass BHs
     Mtot, self.bhv = funcs.sample_BHs(self.cluster.Mbh[0] - MIMBH, v_esc0, self.m_breaks[-2], self.mmax,
-                                      self.a_slopes[-1],
-                                      self.FeH, self.SN_model, self.cluster.sigmans)
+                                      self.a_slopes[-1], self.FeH, self.ifmr, self.cluster.sigmans)
 
     # TODO: self.bhv.extend(bhvIMBH)
     Nbh0 = len(self.bhv)
