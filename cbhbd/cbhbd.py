@@ -4,6 +4,24 @@ from . import mergers
 from . import remnant
 
 
+class MergerOutcome:
+    # Define all possible merger types
+
+    InClusterInspiral = "incluster_inspiral"
+    GWCaptureBS = "gw_capture_bs"
+    GWCaptureBB = "gw_capture_bb"
+    Ejected = "ejected"
+    GWCaptureDirect = "gw_capture_direct"
+
+    @staticmethod
+    def get_outcomes():
+        return [MergerOutcome.InClusterInspiral,
+                MergerOutcome.GWCaptureBS,
+                MergerOutcome.GWCaptureBB,
+                MergerOutcome.Ejected,
+                MergerOutcome.GWCaptureDirect]
+
+
 class CBHBD:
     remnant_models = {k: None for k in remnant.available_remnant_models.keys()}
 

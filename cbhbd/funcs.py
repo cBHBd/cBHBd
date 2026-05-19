@@ -5,24 +5,6 @@ import numpy as np
 from scipy.optimize import bisect
 
 
-class MergerOutcome:
-    # Define all possible merger types
-
-    InClusterInspiral = "incluster_inspiral"
-    GWCaptureBS = "gw_capture_bs"
-    GWCaptureBB = "gw_capture_bb"
-    Ejected = "ejected"
-    GWCaptureDirect = "gw_capture_direct"
-
-    @staticmethod
-    def get_outcomes():
-        return [MergerOutcome.InClusterInspiral,
-                MergerOutcome.GWCaptureBS,
-                MergerOutcome.GWCaptureBB,
-                MergerOutcome.Ejected,
-                MergerOutcome.GWCaptureDirect]
-
-
 def sample_power_law(xmin, xmax, alpha, size):
     # Sample from power law x^alpha with limits xmin, xmax
     # The parameter size can be an integer or an array for N-dim sampling

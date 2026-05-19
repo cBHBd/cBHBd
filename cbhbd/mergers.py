@@ -8,7 +8,7 @@ from . import funcs
 from . import cluster
 from . import remnant
 from .cbhbd import CBHBD
-from .funcs import MergerOutcome
+from .cbhbd import MergerOutcome
 
 
 def _get_IMBH_data(self):
@@ -473,50 +473,3 @@ def _format_merger_output(bbh):
         bbh = pd.DataFrame(columns=colnames)
 
     return bbh
-
-# if __name__ == "__main__":
-#     verbose = True
-#
-#     print("---------------- TEST RUN BEGIN ----------------")
-#
-#     merger_stats = {merger_type: [] for merger_type in MergerOutcome.get_outcomes()}
-#     merger_stats["total"] = []
-#
-#     delta_t_arr = []
-#     seeds = list(range(30))
-#     for seed in seeds:
-#         tst_start_time = time.time()
-#
-#         t_end = 13
-#         Mcl = 8e5
-#         rg = 8
-#         rh = 1
-#         rho_h_i = (Mcl / 2) / ((4 / 3) * np.pi * rh ** 3)
-#         Z = 0.003
-#         bbh, _ = self.run_model(t_end, Mcl, Z, rho_h_i, rg=rg, seed=seed, verbose=verbose)
-#
-#         tst_end_time = time.time()
-#
-#         delta_t_arr.append(tst_end_time - tst_start_time)
-#         print(f"Run {seed}:")
-#         for merger_type in MergerOutcome.get_outcomes():
-#             Nm_type = (bbh.merger_type == merger_type).sum()
-#             merger_stats[merger_type].append(Nm_type)
-#             print(f"\t{merger_type:<20} {Nm_type}")
-#
-#         print(f"\ttotal \t {len(bbh)}")
-#         merger_stats["total"].append(len(bbh))
-#
-#     print("\nTotal statistics:")
-#     for merger_type in MergerOutcome.get_outcomes():
-#         merger_stats_type = np.array(merger_stats[merger_type])
-#         Nm_type = merger_stats_type.mean()
-#         Nm_type_err = merger_stats_type.std()
-#         print(f"\t{merger_type:<20} {Nm_type:.2f} ± {Nm_type_err:.1f}")
-#
-#     Nm_total = np.array(merger_stats["total"])
-#     print(f"\ttotal \t {Nm_total.mean():.2f} ± {Nm_total.std():.1f}")
-#
-#     delta_t_arr = np.array(delta_t_arr)
-#     print(f"\n Run time: ({delta_t_arr.mean():.4g} ± {delta_t_arr.std():.4g}) s per model")
-#     print("---------------- TEST RUN END ----------------")
