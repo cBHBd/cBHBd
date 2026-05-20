@@ -23,7 +23,7 @@ warnings.simplefilter("ignore", category=RuntimeWarning)
 class Cluster:
     def __init__(self, **kwargs):
         """
-        Initialize the star cluster model.
+        Initialize the star cluster model (clusterBH).
 
         Parameters:
         - N (int): Initial number of stars.

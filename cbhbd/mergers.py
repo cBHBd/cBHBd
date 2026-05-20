@@ -1,11 +1,8 @@
-import sys
-
 import numpy as np
 import pandas as pd
 from numpy.random import random
 
 from . import funcs
-from . import cluster
 from . import remnant
 from .cbhbd import CBHBD
 from .cbhbd import MergerOutcome
@@ -20,6 +17,8 @@ def _get_IMBH_data(self):
 
 
 def _run_mergers(self):
+    # Main routine to compute the BBH mergers in the cluster (BHBdynamics).
+
     if self.verbose:
         print("Generating new model with")
         print(f"\t Mass = {self.M0:.2g} M_sun")
