@@ -42,39 +42,9 @@ def _run_mergers(self):
     bbh = []
     v_esc0 = 50 * (self.M0 / 1e5) ** (1 / 3) * (self.rhoh0 / 1e5) ** (1 / 6)
 
-    # Construct IMBH seeds
-    # bhv = []
-    MIMBH = 0
-    Mprog = 0  # Total mass of the progenitor stars to IMBH seeds
-    NIMBH = 0  # Initial number of IMBHs
-    #
-    # if add_imbh_seed:
-    #     assert Z_file_imbh is not None, "Z_file_imbh must be provided if add_imbh_seed is True"
-    #     imbhdata = np.loadtxt(Z_file_imbh)
-    #
-    #     if self.Z == 0.003:
-    #         NIMBH = np.random.randint(80, 110 + 1)
-    #     elif self.Z == 0.007:
-    #         NIMBH = np.random.randint(50, 75 + 1)
-    #     else:
-    #         raise NotImplementedError(f"IMBH seeding for {self.Z = } not implemented")
-    #
-    #     for i in range(NIMBH):
-    #         mproj0, mimbh0, _ = imbhdata[np.random.randint(0, len(imbhdata))]
-    #         MIMBH += mimbh0
-    #         Mprog += mproj0
-    #         spin0 = 0
-    #         bhv.append([mimbh0, spin0, 0, 1])
-
-    # Construct the BH IMF
-    # FIXME: Mbh_min=0,  MprogIMBH=Mprog, MIMBH=MIMBH, NIMBH=NIMBH,
-    # self.cluster = cluster.Cluster(**kwargs)
-
     # Build array with BH properties for retained stellar-mass BHs
-    Mtot, self.bhv = funcs.sample_BHs(self.cluster.Mbh[0] - MIMBH, v_esc0, self.m_breaks[-2], self.mmax,
+    Mtot, self.bhv = funcs.sample_BHs(self.cluster.Mbh[0], v_esc0, self.m_breaks[-2], self.mmax,
                                       self.a_slopes[-1], self.FeH, self.ifmr, self.cluster.sigmans)
-
-    # TODO: self.bhv.extend(bhvIMBH)
     Nbh0 = len(self.bhv)
 
     if self.verbose:

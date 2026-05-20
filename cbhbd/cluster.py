@@ -61,11 +61,6 @@ class Cluster:
         self.Mbh0, self.mbh0 = 1e-99, 1e-89  # [Msun, Msun]. We set the BH masses equal to 0. They are later extracted from the BHMF. If not, the cluster is evolved without BHs.
         self.ifmr = None  # Defined in CBHBD class
 
-        # IMBH seeds
-        self.MprogIMBH = 0.0
-        self.MIMBH = 0.0
-        self.NIMBH = 0
-
         # Model parameters.
         self.mns = 1.4  # [Msun] Mass of Neutron Stars (NS).
         self.mst_inf = 1.4  # [Msun] Maximum upper stellar mass at infinity. Serves as the upper boundary for the average stellar mass. Default value to stellar remnants, subject to change for IMFs that produce heavy stars.
@@ -792,8 +787,7 @@ class Cluster:
 
             # Implement kicks, if activated, for this IMF, number of stars, with such metallicity, central escape velocity and BHMF conditions.
             self.ibh = ssptools.InitialBHPopulation.from_powerlaw(self.m_breaks, self.a_slopes, self.nbins, self.FeH,
-                                                                  N0=self.N - self.MprogIMBH / self.m0, vesc=self.vesc0,
-                                                                  natal_kicks=self.kick,
+                                                                  N0=self.N, vesc=self.vesc0, natal_kicks=self.kick,
                                                                   **self.ibh_kwargs)
             self.sev_rates = ssptools.LuminousEvMassLoss(self.ibh.IMF,
                                                          self.FeH)  # Provides rates of changes for the stellar population for a given IMF and metallicity.
@@ -801,24 +795,17 @@ class Cluster:
 
             # Now handle BH population only if self.BH is True
             if self.BH:
-                self.Mbh0 = self.ibh.Mtot + self.MIMBH  # [Msun] Expected initial mass of BHs.
+                self.Mbh0 = self.ibh.Mtot  # [Msun] Expected initial mass of BHs.
                 self.f0 = self.Mbh0 / self.M0  # Initial fraction of BHs. Should be close to 0.06 for poor-metal clusters.
-                self.Nbh0 = self.ibh.Ntot + self.NIMBH  # Initial number of BHs.
+                self.Nbh0 = self.ibh.Ntot  # Initial number of BHs.
                 self.mbh0 = self.Mbh0 / self.Nbh0  # [Msun] Initial average BH mass.
                 self.mlo = self.ibh.m.min()  # [Msun] Minimum BH mass in the BHMF.
                 self.mup = self.ibh.m.max()  # [Msun] Maximum BH mass in the BHMF.
-                self.Mst_lost = self.ibh.Ms_lost + self.MprogIMBH - self.MIMBH  # [Msun] Mass of stars lost in order to form BHs.
+                self.Mst_lost = self.ibh.Ms_lost  # [Msun] Mass of stars lost in order to form BHs.
                 self.t_bhcreation = self.ibh.age  # [Myr] Time needed to form these astrophysical mass BHs.
-            else:
-                assert self.MprogIMBH == 0.0, "Can't have IMBH seeds with self.BH=False"
-                assert self.MIMBH == 0.0, "Can't have IMBH seeds with self.BH=False"
-                assert self.NIMBH == 0, "Can't have IMBH seeds with self.BH=False"
 
         # Handle non-SSP case (stellar evolution + BHs)
         else:
-            assert self.MprogIMBH == 0.0, "IMBH seeds are only implemented when using SSPTools"
-            assert self.MIMBH == 0.0, "IMBH seeds are only implemented when using SSPTools"
-            assert self.NIMBH == 0, "IMBH seeds are only implemented when using SSPTools"
             self.nu_factor = 0  # Factor that corrects solution for Mst, mst for the case of a different IMF that has similar upper part with Kroupa. Default to 0. Applied only if ssp are not used.
 
             # Check that this is not exactly a Kroupa IMF.
