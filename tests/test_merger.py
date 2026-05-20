@@ -12,8 +12,7 @@ def test_merger():
     seed = 12345
     verbose = True
 
-    model = cbhbd.cbhbd.CBHBD(tend=tend, M0=M0, Z=Z, rh0=rh0, compute_mergers=True, rg=rg, seed=seed,
-                              verbose=verbose)
+    model = cbhbd.cbhbd.CBHBD(tend=tend, M0=M0, Z=Z, rh0=rh0, compute_mergers=True, rg=rg, seed=seed, verbose=verbose)
 
     assert model.cluster is not None, "Cluster is not properly computed"
     assert model.mergers is not None, "Mergers are not properly computed"
