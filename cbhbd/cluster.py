@@ -129,7 +129,7 @@ class Cluster:
         self.cg = 0  # Constant used for the contribution of the tidal field on the energy of the cluster.
         self.ym = 1  # Exponent to be used for properly dissolving clusters. Affects xi.
         self.alpha_seg, self.beta_seg, self.gamma_seg = 0., 0.0, 0  # Parameters used for modelling eta. They facilitate differentvalues for different fbh and help eta decrease to 3 when we do not have important contributions of stars.
-        self.Nrlxf = 1  # Numer of elapsed relaxations to core collapse.
+        self.Nrlxf = 1  # Number of elapsed relaxations to core collapse.
 
         # Integration parameters.
         self.tend = None  # Defined in CBHBD.
