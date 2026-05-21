@@ -1,6 +1,7 @@
 import numpy
-from numpy import log, sqrt, pi, log10, exp, tanh, arctan, arctanh
-
+from numpy import log, sqrt, pi, exp, tanh, arctan, arctanh
+from scipy.special import erf, hyp2f1, spence, gammainc, gammaincc, gamma, beta, betainc
+from scipy.integrate import quad
 
 # List of some prescriptions used in cluster.py, moved here to improve readability.
 
