@@ -1517,7 +1517,7 @@ class Cluster:
             # Writes data.
             numpy.savetxt(self.outfile_cluster, data, header=table_header, fmt="%12.5e", comments="")
 
-        self.tfin = min(self.tend * 1e3, self.t.max())
+        self.tfin = min(self.tend * 1e-3, self.t.max())
 
 
 # Compute initial average mass.
