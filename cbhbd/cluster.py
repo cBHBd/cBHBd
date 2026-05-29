@@ -1261,8 +1261,8 @@ class Cluster:
 
             # Use nu based stellar evolution.
             else:
-                nu = numpy.max(self.nu_function(self.Z, t),
-                               0)  # Rate of stellar mass loss due to stellar winds. Taken from a dictionary, ensures that it is non-negative.
+                nu = numpy.maximum(self.nu_function(self.Z, t),
+                                   0)  # Rate of stellar mass loss due to stellar winds. Taken from a dictionary, ensures that it is non-negative.
                 mst_dotsev -= nu * (
                         mst - mst * self.M0 / Mst * self.nu_factor) / t  # [Msun/Myr] When we consider stellar evolution, the average stellar mass changes through this differential equation. It is selected so that the case of a varying nu is properly described.
                 Mst_dotsev -= nu * (
@@ -1300,8 +1300,8 @@ class Cluster:
                     rt_index - 2 + self.mu_r(
                 RG)))  # [pc/Myr] Change in the half-mass radius if we consider contribution from the galactic field. Derived from energy balance.
 
-        derivs = numpy.array([Mst_dot, Mbh_dot, rh_dot, mst_dot, Nst_dotsev, Nrlx_dot, eta_dot, RG_dot],
-                             dtype=object)  # Save all derivatives in a sequence.
+        derivs = numpy.array([Mst_dot, Mbh_dot, rh_dot, mst_dot, Nst_dotsev, Nrlx_dot, eta_dot,
+                              RG_dot])  # Save all derivatives in a sequence.
 
         return derivs  # Return the derivatives in an array.
 
