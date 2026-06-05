@@ -80,7 +80,7 @@ class CBHBD:
             for key, value in kwargs.items():
                 setattr(self, key, value)
 
-        assert self.remnant_model in remnant.available_remnant_models, f"Remnant model {self.remnant_models} not available, please choose from {remnant.available_remnant_models.keys()}"
+        assert self.remnant_model in remnant.available_remnant_models, f"Remnant model {self.remnant_model} not available, please choose from {remnant.available_remnant_models.keys()}"
         self._construct_input_params()
 
         # Add the unchanged defaults to kwargs, to then pass it to ClusterBH
