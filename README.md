@@ -10,7 +10,9 @@ A fast code for simulating star clusters and black hole dynamics.
 If you use ᴄBHBᴅ in any publication, please cite it as follows:
 > ᴄBHBᴅ (Antonini & Gieles [2020](https://ui.adsabs.harvard.edu/abs/2020MNRAS.492.2936A/abstract); Antonini et
 > al. [2023](https://ui.adsabs.harvard.edu/abs/2023MNRAS.522..466A/abstract)), with the updates of Fronimos Pouliasis et
-> al. (2025)
+> al. ([2025](https://ui.adsabs.harvard.edu/abs/2026arXiv260528088F/abstract)),
+> Chattopadhyay et al. ([2026](https://ui.adsabs.harvard.edu/abs/2026arXiv260409773C/abstract)), and Marín Pina et al.
+> (in prep)
 
 ᴄBHBᴅ stands for the combination of ᴄʟᴜsᴛᴇʀBH (the code for the cluster evolution) and BHBᴅʏɴᴀᴍɪᴄs (the code for the
 black hole mergers).
