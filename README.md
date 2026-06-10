@@ -19,10 +19,10 @@ black hole mergers).
 
 ## Installation
 
-The cBHBd package can be installed directly from this repository using pip:
+The cBHBd package can be installed using pip:
 
 ```
-python -m pip install git+https://github.com/cBHBd/cBHBd.git
+pip install cbhbd
 ```
 
 All required dependencies will be installed automatically.
