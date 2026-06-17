@@ -153,8 +153,8 @@ class RemnantModelIslam26(RemnantModel):
         warnings.filterwarnings("ignore", "Wswiglal-redir-stdio")
         import surfinBH
         from BHPTNRremnant.remnant import BHPTNRSurRemnant
-        import gwModel_kick.gwModel_kick_aligned_spin
-        import gwModel_kick.gwModel_kick_prec
+        from gwModels.remnants import gwModel_kick_q200
+        from gwModels.remnants import gwModel_kick_prec_flow
         import os
 
         self.nr_model_lowq = surfinBH.LoadFits("NRSur7dq4Remnant")
@@ -162,9 +162,8 @@ class RemnantModelIslam26(RemnantModel):
         self.C_KM_S = 299792.458
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.flow, self.cfg = gwModel_kick.gwModel_kick_prec.load_gwModel_kick_prec_flow(dir_path)
-        self.nr_model_kick_q200 = gwModel_kick.gwModel_kick_aligned_spin.gwModel_kick_q200
-        self.nr_model_kick_prec = gwModel_kick.gwModel_kick_prec.sample_gwModel_kick_prec
+        self.nr_model_kick_q200 = gwModel_kick_q200
+        self.nr_model_kick_prec = gwModel_kick_prec_flow(f"{dir_path}/data").sample
 
     def get_description(self):
         return ("This model uses Islam et al. (2026) (https://arxiv.org/pdf/2603.10170) for the kick velocity, and "
@@ -197,7 +196,7 @@ class RemnantModelIslam26(RemnantModel):
         if S1 == 0 and S2 == 0:
             v_kick = self.nr_model_kick_q200(q, S1, S2, return_std=False)
         else:
-            v_kick = self.nr_model_kick_prec(self.flow, self.cfg, q, S1, S2, num_samples=1)[0]
+            v_kick = self.nr_model_kick_prec(q, S1, S2, num_samples=1)[0]
 
         return m_rem, chi_f, v_kick
 
