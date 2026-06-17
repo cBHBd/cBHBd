@@ -1,6 +1,6 @@
 [project]
 name = "cbhbd"
-version = "1.0.0"
+version = "1.0.1"
 description = "A fast code for simulating star cluster and black hole dynamics"
 authors = [
     { name = "Daniel Marín Pina", email = "daniel.marin@uni-heidelberg.de" },
