@@ -69,7 +69,7 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma):
 
         # Construct BH array
         spin = np.zeros_like(mbh)  # Zero initial spin
-        gen = np.zeros_like(mbh, dtype=int)
+        gen = np.ones_like(mbh, dtype=int)
         tdf = np.zeros_like(mbh)
 
         bhv = np.vstack([mbh, spin, tdf, gen]).T
