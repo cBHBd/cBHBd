@@ -29,3 +29,18 @@ def test_merger():
     assert model.cluster.M_interp(model.cluster.tfin) >= 0, "Final cluster mass is not properly computed"
     assert model.cluster.Mbh_interp(model.cluster.tfin) >= 0, "Final BH mass is not properly computed"
     assert model.cluster.rh_interp(model.cluster.tfin) >= 0, "Final half-mass radius is not properly computed"
+
+
+def test_merger():
+    print(
+        "Checking that the code runs without crashing when mergers are enabled and the cluster is too small to have BHs",
+        flush=True)
+    tend = 13e3
+    M0 = 1e2
+    rg = 8
+    rh0 = 1
+    Z = 0.003
+    seed = 12345
+    verbose = True
+
+    model = cbhbd.cbhbd.CBHBD(tend=tend, M0=M0, Z=Z, rh0=rh0, compute_mergers=True, rg=rg, seed=seed, verbose=verbose)

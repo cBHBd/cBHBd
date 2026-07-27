@@ -43,7 +43,7 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma):
         # We sample a number of BHs equal to nsamp, then keep only as many as needed. While the choice of nsamp is
         # arbitrary and does not affect the end result, a too small value will lead to multiple iterations, while a too
         # large value will lead to degraded performance and unnecessary memory usage. This ansatz is fairly efficient.
-        nsamp = int(i * Mbh / 10)
+        nsamp = int(i * Mbh / 10) + 1
 
         # Sample BH masses and kicks
         mproj = sample_power_law(ifmr.BH_mi[0], mmax, alpha, nsamp)
@@ -60,12 +60,17 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma):
 
         # Fix the total mass in BHs to be as close as possible to Mbh
         mbh_cumsum = np.cumsum(mbh)
-        idx = np.argmin(np.abs(mbh_cumsum - Mbh))
-        actual_Mbh = mbh_cumsum[idx]
-        if idx + 1 == len(mbh):
-            i += 1
-            continue
-        mbh = mbh[:idx + 1]
+        if Mbh < mbh_cumsum[0]:
+            # The cluster does not have any BHs
+            mbh = np.array([], dtype=float)
+            actual_Mbh = 0.0
+        else:
+            idx = np.argmin(np.abs(mbh_cumsum - Mbh))
+            actual_Mbh = mbh_cumsum[idx]
+            if idx + 1 == len(mbh):
+                i += 1
+                continue
+            mbh = mbh[:idx + 1]
 
         # Construct BH array
         spin = np.zeros_like(mbh)  # Zero initial spin

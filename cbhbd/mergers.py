@@ -9,6 +9,9 @@ from .cbhbd import MergerOutcome
 
 
 def _get_IMBH_data(self):
+    if len(self.bhv) == 0:
+        return  # Do nothing if there are no BHs
+
     # In this calculation kmax explicitly includes stuff in dynamical friction
     kmax = len(self.bhv[:, 0]) - np.nanargmax(np.flip(self.bhv[:, 0])) - 1
     self.mIMBH = self.bhv[kmax, 0]
