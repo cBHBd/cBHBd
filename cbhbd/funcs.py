@@ -13,12 +13,13 @@ def sample_power_law(xmin, xmax, alpha, size):
     return (-(xmin ** (1 + alpha) * (-1 + r)) + xmax ** (1 + alpha) * r) ** (1 / (1 + alpha))
 
 
-def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma):
+def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma, mmax_IMF):
     # Sample the original population of stellar-mass BHs. The total mass of the population is (approximately) Mbh.
     # Remove BHs with a kick velocity greater than v_esc0. The progenitors follow an IMF with slope alpha between mmin
     # and mmax (possibly with different slopes at lower masses). FeH is the iron abundance, ifmr_str is the
     # initial-final mass relation after stellar evolution (including supernova prescriptions), and sigma is the
-    # parameter of the Maxwellian distribution of kick velocities
+    # parameter of the Maxwellian distribution of kick velocities. mmax_IMF is the maximum mass of the IMF before aBHs
+    # (otherwise it's just equal to mmax)
 
     # Load initial-final mass relation
     if "rapid" in ifmr_str:
@@ -34,8 +35,6 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma):
     assert mmax > ifmr.BH_mi[0], "The chosen IMF does not form BHs"
     if mmin > ifmr.BH_mi[0]:
         raise NotImplementedError(f"Can't have an IMF with a mass break M > {ifmr.BH_mi[0]} Msun")
-    if mmax > ifmr.BH_mi[1]:
-        raise NotImplementedError(f"Can't have a progenitor star with M > {ifmr.BH_mi[1]} Msun")
 
     # We iterate in case we don't sample enough BHs. This is faster than a Python loop
     i = 1
@@ -43,7 +42,7 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma):
         # We sample a number of BHs equal to nsamp, then keep only as many as needed. While the choice of nsamp is
         # arbitrary and does not affect the end result, a too small value will lead to multiple iterations, while a too
         # large value will lead to degraded performance and unnecessary memory usage. This ansatz is fairly efficient.
-        nsamp = int(i * Mbh / 10) + 1
+        nsamp = int(i * Mbh / 10)
 
         # Sample BH masses and kicks
         mproj = sample_power_law(ifmr.BH_mi[0], mmax, alpha, nsamp)
@@ -52,25 +51,20 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma):
         mbh = mbh[mbh > 0.0]  # Remove massless remnants
         vkick = ssptools.kicks.maxwellian_kick_v(mproj, FeH=FeH, SNe_method=SN_method, vdisp=sigma)
 
-        # Remove kicked BHs
-        mbh = mbh[vkick <= v_esc0]
+        # Remove kicked BHs (but always keep aBHs)
+        mbh = mbh[(vkick <= v_esc0) | (mproj > mmax_IMF)]
         if len(mbh) == 0:
             i += 1
             continue
 
         # Fix the total mass in BHs to be as close as possible to Mbh
         mbh_cumsum = np.cumsum(mbh)
-        if Mbh < mbh_cumsum[0]:
-            # The cluster does not have any BHs
-            mbh = np.array([], dtype=float)
-            actual_Mbh = 0.0
-        else:
-            idx = np.argmin(np.abs(mbh_cumsum - Mbh))
-            actual_Mbh = mbh_cumsum[idx]
-            if idx + 1 == len(mbh):
-                i += 1
-                continue
-            mbh = mbh[:idx + 1]
+        idx = np.argmin(np.abs(mbh_cumsum - Mbh))
+        actual_Mbh = mbh_cumsum[idx]
+        if idx + 1 == len(mbh):
+            i += 1
+            continue
+        mbh = mbh[:idx + 1]
 
         # Construct BH array
         spin = np.zeros_like(mbh)  # Zero initial spin

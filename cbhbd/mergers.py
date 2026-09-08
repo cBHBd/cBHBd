@@ -9,9 +9,6 @@ from .cbhbd import MergerOutcome
 
 
 def _get_IMBH_data(self):
-    if len(self.bhv) == 0:
-        return  # Do nothing if there are no BHs
-
     # In this calculation kmax explicitly includes stuff in dynamical friction
     kmax = len(self.bhv[:, 0]) - np.nanargmax(np.flip(self.bhv[:, 0])) - 1
     self.mIMBH = self.bhv[kmax, 0]
@@ -47,7 +44,7 @@ def _run_mergers(self):
 
     # Build array with BH properties for retained stellar-mass BHs
     Mtot, self.bhv = funcs.sample_BHs(self.cluster.Mbh[0], v_esc0, self.m_breaks[-2], self.mmax,
-                                      self.a_slopes[-1], self.FeH, self.ifmr, self.cluster.sigmans)
+                                      self.a_slopes[-1], self.FeH, self.ifmr, self.cluster.sigmans, self.mmax_IMF)
     Nbh0 = len(self.bhv)
 
     if self.verbose:

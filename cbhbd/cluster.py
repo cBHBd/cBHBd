@@ -213,6 +213,7 @@ class Cluster:
         self.a_kroupa = None  # Defined in CBHBD.
         self.m_breaks = None  # Defined in CBHBD.
         self.m_kroupa = None  # Defined in CBHBD.
+        self.mmax_IMF = None  # Defined in CBHBD.
         self.nbins = None  # Defined in CBHBD.
 
         # All other arguments to be passed to InitialBHPopulation, including IFMR and natal kick options. See SSPtools documentation for details.

@@ -42,6 +42,7 @@ class CBHBD:
 
         self.verbose = True  # If True, print extra output.
         self.seed = None  # Seed for random number generator. Use None to get a random seed.
+        self.add_aBH = False  # If true, add BHs above the pair-instability mass gap according to Gieles et al. (2025).
         self.remnant_model = "RemnantModelVarma19Islam23"  # GW remnant model, see remnant.py for available options.
         self.compute_mergers = True  # If true, compute the mergers. If false, only compute the cluster model.
         self.ifmr = "sevn-rapid"  # IFMR relation to be used if ssp is selected.
@@ -82,6 +83,12 @@ class CBHBD:
 
         assert self.remnant_model in remnant.available_remnant_models, f"Remnant model {self.remnant_model} not available, please choose from {remnant.available_remnant_models.keys()}"
         self._construct_input_params()
+
+        self.mmax_IMF = self.m_breaks[-1]
+        if self.add_aBH:
+            mmax_aBH = 250 * self.M0 / 1e4
+            assert mmax_aBH >= self.mmax_IMF, "Can't have aBHs with this IMF"
+            self.m_breaks[-1] = mmax_aBH
 
         # Add the unchanged defaults to kwargs, to then pass it to ClusterBH
         for attr, value in self.__dict__.items():
