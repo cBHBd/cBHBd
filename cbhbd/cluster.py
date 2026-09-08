@@ -66,7 +66,7 @@ class Cluster:
         # Model parameters.
         self.mns = 1.4  # [Msun] Mass of Neutron Stars (NS).
         self.mst_inf = 1.4  # [Msun] Maximum upper stellar mass at infinity. Serves as the upper boundary for the average stellar mass. Default value to stellar remnants, subject to change for IMFs that produce heavy stars.
-        self.sigmans = 265  # [km/s] Velocity dispersion for NS.
+        self.sigmans = 217  # [km/s] Velocity dispersion for NS. (updated according to Disberg & Mandel 2025)
         self.gamma = 0.02  # Parameter for Coulomb logarithm.
         self.x = 3. / 4  # Exponent used for finite escape time from Lagrange points. Introduces energy dependece on evaporation time scale.
         self.r = 0.8  # Prefactor for the energy of the cluster.
