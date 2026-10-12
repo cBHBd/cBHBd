@@ -31,7 +31,7 @@ def test_merger():
     assert model.cluster.rh_interp(model.cluster.tfin) >= 0, "Final half-mass radius is not properly computed"
 
 
-def test_merger():
+def test_merger_small_cluster():
     print(
         "Checking that the code runs without crashing when mergers are enabled and the cluster is too small to have BHs",
         flush=True)

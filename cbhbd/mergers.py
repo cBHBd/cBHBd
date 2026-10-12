@@ -10,6 +10,11 @@ from .cbhbd import MergerOutcome
 
 def _get_IMBH_data(self):
     # In this calculation kmax explicitly includes stuff in dynamical friction
+    if self.bhv.size == 0:
+        self.mIMBH = None
+        self.chiIMBH = None
+        self.genIMBH = None
+        return
     kmax = len(self.bhv[:, 0]) - np.nanargmax(np.flip(self.bhv[:, 0])) - 1
     self.mIMBH = self.bhv[kmax, 0]
     self.chiIMBH = self.bhv[kmax, 1]
