@@ -57,6 +57,8 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma, mmax_IMF):
 
         # Remove kicked BHs (but always keep aBHs)
         mbh = mbh[(vkick <= v_esc0) | (mproj > mmax_IMF)]
+        mproj = mproj[(vkick <= v_esc0) | (mproj > mmax_IMF)]
+
         if len(mbh) == 0:
             i += 1
             continue
@@ -69,13 +71,15 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma, mmax_IMF):
             i += 1
             continue
         mbh = mbh[:idx + 1]
+        mproj = mproj[:idx + 1]
 
         # Construct BH array
         spin = np.zeros_like(mbh)  # Zero initial spin
         gen = np.ones_like(mbh, dtype=int)
         tdf = np.zeros_like(mbh)
+        aBHgen = (mproj > mmax_IMF).astype(int)
 
-        bhv = np.vstack([mbh, spin, tdf, gen]).T
+        bhv = np.vstack([mbh, spin, tdf, gen, aBHgen]).T
 
         return actual_Mbh, bhv
 

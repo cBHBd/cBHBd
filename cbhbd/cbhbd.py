@@ -101,7 +101,7 @@ class CBHBD:
 
         # Output
         self.cluster, self.mergers = None, None
-        self.mIMBH, self.chiIMBH, self.genIMBH = None, None, None  # Properties of the most massive BH in the cluster.
+        self.mIMBH, self.chiIMBH, self.genIMBH, self.aBHgenIMBH = None, None, None, None  # Properties of the most massive BH in the cluster.
         self.mIMBHej, self.chiIMBHej, self.genIMBHej = None, None, None  # Properties of the most massive BH ejected from the cluster.
         self.bhv = None
 

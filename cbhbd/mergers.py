@@ -14,11 +14,15 @@ def _get_IMBH_data(self):
         self.mIMBH = None
         self.chiIMBH = None
         self.genIMBH = None
+        self.aBHgenIMBH = None
         return
     kmax = len(self.bhv[:, 0]) - np.nanargmax(np.flip(self.bhv[:, 0])) - 1
     self.mIMBH = self.bhv[kmax, 0]
     self.chiIMBH = self.bhv[kmax, 1]
     self.genIMBH = self.bhv[kmax, 3]
+    self.aBHgenIMBH = self.bhv[kmax, 4]
+
+    assert not ((self.aBHgenIMBH > 0) and not self.add_aBH), "Can't have an aBH if not added previously"
 
 
 def _run_mergers(self):
@@ -98,7 +102,7 @@ def _run_mergers(self):
         m_d[kmin] = np.nan
         k1 = np.nanargmin(np.abs(m_d - m1_t))
         m_d[kmin] = mbhmin
-        m1, S1, gen1 = self.bhv[k1, 0], self.bhv[k1, 1], self.bhv[k1, 3]
+        m1, S1, gen1, aBHgen1 = self.bhv[k1, 0], self.bhv[k1, 1], self.bhv[k1, 3], self.bhv[k1, 4]
         if k1 == kmin or np.isnan(m1):  # Raise exception if the primary is the lightest BH
             raise RuntimeError(f"Error in {k1=}, {m1=} determination")
 
@@ -111,7 +115,7 @@ def _run_mergers(self):
                 1 / (1 + alpha_2))
         k2 = np.nanargmin(np.abs(m_d - q_t * m1))
         m_d[k1] = m1
-        m2, S2, gen2 = self.bhv[k2, 0], self.bhv[k2, 1], self.bhv[k2, 3]
+        m2, S2, gen2, aBHgen2 = self.bhv[k2, 0], self.bhv[k2, 1], self.bhv[k2, 3], self.bhv[k2, 4]
         if k2 == k1 or np.isnan(m2):  # Raise exception if the primary and the secondary are the same BH
             raise RuntimeError(f"Error in {k2=}, {m2=} determination")
 
@@ -213,9 +217,9 @@ def _run_mergers(self):
                     k2, k3 = k3, k2
                 if self.bhv[k2, 0] > self.bhv[k1, 0]:  # Force that the primary is always the most massive
                     k1, k2 = k2, k1
-                m1, S1, gen1 = self.bhv[k1, 0], self.bhv[k1, 1], self.bhv[k1, 3]
-                m2, S2, gen2 = self.bhv[k2, 0], self.bhv[k2, 1], self.bhv[k2, 3]
-                m3, S3, gen3 = self.bhv[k3, 0], self.bhv[k3, 1], self.bhv[k3, 3]
+                m1, S1, gen1, aBHgen1 = self.bhv[k1, 0], self.bhv[k1, 1], self.bhv[k1, 3], self.bhv[k1, 4]
+                m2, S2, gen2, aBHgen2 = self.bhv[k2, 0], self.bhv[k2, 1], self.bhv[k2, 3], self.bhv[k2, 4]
+                m3, S3, gen3, aBHgen3 = self.bhv[k3, 0], self.bhv[k3, 1], self.bhv[k3, 3], self.bhv[k3, 4]
 
             # Compute the recoil of the binary and interloper
             vbin = np.sqrt(dE * Ebin * (2 / (m1 + m2)) * (m3 / (m1 + m2 + m3)))  # In km/s
@@ -263,7 +267,7 @@ def _run_mergers(self):
                 m_d[kmin4b] = np.nan
                 k3 = np.nanargmin(np.abs(m_d - m3_t))
                 m_d[kmin4b] = mbhmin4b
-                m3, S3, gen3 = self.bhv[k3, 0], self.bhv[k3, 1], self.bhv[k3, 3]
+                m3, S3, gen3, aBHgen3 = self.bhv[k3, 0], self.bhv[k3, 1], self.bhv[k3, 3], self.bhv[k3, 4]
                 if k3 == kmin or k3 == k1 or k3 == k2 or np.isnan(m3):  # Check that we don't select the same BH twice
                     raise RuntimeError(f"Error in {k3=}, {m3=} determination  ({k1=}, {k2=}, {kmin=}, {kmin4b=})")
 
@@ -280,7 +284,7 @@ def _run_mergers(self):
                 m_d[k1] = m1
                 m_d[k2] = m2
                 m_d[k3] = m3
-                m4, S4, gen4 = self.bhv[k4, 0], self.bhv[k4, 1], self.bhv[k4, 3]
+                m4, S4, gen4, aBHgen4 = self.bhv[k4, 0], self.bhv[k4, 1], self.bhv[k4, 3], self.bhv[k4, 4]
                 if k4 == k1 or k4 == k2 or k4 == k3 or np.isnan(m4):  # Check that we don't select the same BH twice
                     raise RuntimeError(f"Error in {k4=}, {m4=} determination ({k1=}, {k2=}, {k3=}, {kmin=}, {kmin4b=})")
 
@@ -297,8 +301,8 @@ def _run_mergers(self):
                 # Check for captures in binary-binary encounters
                 if pbb >= random():
                     if a2 < a:  # Handle the edge case that the second BBH is smaller
-                        k1, m1, S1, gen1 = k3, m3, S3, gen3
-                        k2, m2, S2, gen2 = k4, m4, S4, gen4
+                        k1, m1, S1, gen1, aBHgen1 = k3, m3, S3, gen3, aBHgen3
+                        k2, m2, S2, gen2, aBHgen2 = k4, m4, S4, gen4, aBHgen4
                         a = a2
                         Rs = 4 * (m1 + m2) / c ** 2
                         ell_cap = (Rs / a) ** (5 / 14)
@@ -384,7 +388,11 @@ def _run_mergers(self):
             self.bhv[k2, 0] = m_rem  # Make a new BH (merger product)
             self.bhv[k2, 1] = chi_f  # New spin
             self.bhv[k2, 2] = t_form  # Reinclude merger product in core only after dynamical friction
-            self.bhv[k2, 3] = max(self.bhv[k1, 3], self.bhv[k2, 3]) + 1  # Increase the BH generation by one
+            gen = max(self.bhv[k1, 3], self.bhv[k2, 3]) + 1  # Increase the BH generation by one
+            self.bhv[k2, 3] = gen
+            aBHgenmax = max(self.bhv[k1, 4], self.bhv[k2, 4])
+            aBHgenmin = min(self.bhv[k1, 4], self.bhv[k2, 4])
+            self.bhv[k2, 4] = aBHgenmax + min(aBHgenmin, 1)
 
             M3ej += m1 + m2 - m_rem  # Take into account the difference between m_rem and m1+m2
 
