@@ -87,11 +87,11 @@ def get_sync_time(cbh, fbh0, Mcl_i, M3ej, t):
         return t
     elif fbh0 * Mcl_i - M3ej >= cbh.Mbh0:
         return t
-    elif fbh0 * Mcl_i - M3ej <= cbh.Mbh_interp(cbh.tend / 1e3):
-        return cbh.tend * 1e6
+    elif fbh0 * Mcl_i - M3ej <= cbh.Mbh_interp(cbh.tfin):
+        return cbh.tfin * 1e9
     else:
         t_bisect = bisect(lambda t_param: cbh.Mbh_interp(t_param / 1e9) - (fbh0 * Mcl_i - M3ej),
-                          1, cbh.tend * 1e6 - 1,
+                          1, cbh.tfin * 1e9 - 1,
                           xtol=1e2)
         return max(t, t_bisect)
 

@@ -77,7 +77,7 @@ def _run_mergers(self):
 
     alpha_samp = None
 
-    while t <= self.cluster.tfin * 1e9:
+    while t < self.cluster.tfin * 1e9:
         m_d, mbhmax, mbhmin, Nbh_core, kmin, kmax = funcs.get_mbh_params(self.bhv, t)
         alpha_samp = funcs.get_alpha_samp(m_d, Nbh_core, mbhmin, mbhmax, alpha_samp)
 
@@ -342,8 +342,6 @@ def _run_mergers(self):
                 merger_type = MergerOutcome.GWCaptureDirect
                 break
 
-        M3ej += m1 + m2
-
         if Nbh_core < 4:
             continue
         if M3ej > fbh0 * self.M0:
@@ -387,6 +385,8 @@ def _run_mergers(self):
             self.bhv[k2, 1] = chi_f  # New spin
             self.bhv[k2, 2] = t_form  # Reinclude merger product in core only after dynamical friction
             self.bhv[k2, 3] = max(self.bhv[k1, 3], self.bhv[k2, 3]) + 1  # Increase the BH generation by one
+
+            M3ej += m1 + m2 - m_rem  # Take into account the difference between m_rem and m1+m2
 
         else:  # If the binary is ejected or the end product is ejected then remove members
             M3ej += m1 + m2
