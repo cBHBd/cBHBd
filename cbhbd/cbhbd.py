@@ -43,7 +43,7 @@ class CBHBD:
         self.verbose = True  # If True, print extra output.
         self.seed = None  # Seed for random number generator. Use None to get a random seed.
         self.add_aBH = False  # If true, add BHs above the pair-instability mass gap according to Gieles et al. (2025).
-        self.remnant_model = "RemnantModelVarma19Islam23"  # GW remnant model, see remnant.py for available options.
+        self.remnant_model = "RemnantModelSimple"  # GW remnant model, see remnant.py for available options.
         self.compute_mergers = True  # If true, compute the mergers. If false, only compute the cluster model.
         self.ifmr = "sevn-rapid"  # IFMR relation to be used if ssp is selected.
 
