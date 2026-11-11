@@ -17,7 +17,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.14"
 
       - name: Install dependencies
         run: |
@@ -37,7 +37,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.14"
 
       - name: Install dependencies
         run: |
@@ -46,6 +46,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest .
           pip install surfinBH bhptnrremnant h5py lalsuite
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install nflows gwModels
 
 
       - name: Test mergers

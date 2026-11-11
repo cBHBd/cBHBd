@@ -205,7 +205,13 @@ class RemnantModelIslam26(RemnantModel):
         if S1 == 0 and S2 == 0:
             v_kick = self.nr_model_kick_q200(q, S1, S2, return_std=False)
         else:
-            v_kick = self.nr_model_kick_prec(q, S1, S2, num_samples=1)[0]
+            # The flow samples with torch's global RNG. Seed it from rng on every call, so the kicks only depend on
+            # rng (not on when the flow was built or on other torch usage), and restore torch's state afterwards.
+            import torch
+            torch_seed = int(rng.integers(2 ** 63))
+            with torch.random.fork_rng():
+                torch.manual_seed(torch_seed)
+                v_kick = self.nr_model_kick_prec(q, S1, S2, num_samples=1)[0]
 
         return m_rem, chi_f, v_kick
 
