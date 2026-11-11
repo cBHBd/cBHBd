@@ -1,5 +1,7 @@
 # ᴄBHBᴅ
 
+[![CI Tests](https://github.com/cBHBd/cBHBd/actions/workflows/ci_tests.yml/badge.svg)](https://github.com/cBHBd/cBHBd/actions/workflows/ci_tests.yml)
+
 A fast code for simulating star clusters and black hole dynamics.
 
 ᴄBHBᴅ can be used for
