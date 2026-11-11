@@ -39,14 +39,17 @@ class RemnantModelVarma19Islam23(RemnantModel):
                 "orientations, but accuracy is not guaranteed at higher mass ratios. Instead, for mergers with q > 6, we"
                 " use the BHPTNRSurRemnant model (Islam et al. 2023), which can be extrapolated up to q ~ 1000.")
 
-    def get_remnant(self, m1, m2, S1, S2):
+    def get_remnant(self, m1, m2, S1, S2, rng=None):
+        if rng is None:
+            rng = np.random.default_rng()
+
         q = m1 / m2
 
         if q <= 6:
-            theta_S1 = np.random.uniform(0, np.pi)
-            phi_S1 = np.random.uniform(0, 2 * np.pi)
-            theta_S2 = np.random.uniform(0, np.pi)
-            phi_S2 = np.random.uniform(0, 2 * np.pi)
+            theta_S1 = rng.uniform(0, np.pi)
+            phi_S1 = rng.uniform(0, 2 * np.pi)
+            theta_S2 = rng.uniform(0, np.pi)
+            phi_S2 = rng.uniform(0, 2 * np.pi)
 
             S1_vec = S1 * np.array([np.sin(theta_S1) * np.cos(phi_S1),
                                     np.sin(theta_S1) * np.sin(phi_S1),
@@ -84,20 +87,23 @@ class RemnantModelSimple(RemnantModel):
         # Compute the cross product of two vectors
         return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
 
-    def get_remnant(self, m1, m2, S1, S2):
+    def get_remnant(self, m1, m2, S1, S2, rng=None):
+        if rng is None:
+            rng = np.random.default_rng()
+
         q = m2 / m1
         eta = q / (1 + q) ** 2
 
-        theta = np.arccos(-1. + np.random.random() * (1. + 1.))
-        phi = 0. + np.random.random() * (2. * np.pi + 0.0)
+        theta = np.arccos(-1. + rng.random() * (1. + 1.))
+        phi = 0. + rng.random() * (2. * np.pi + 0.0)
         chi1 = np.array([S1 * np.cos(theta), S1 * np.sin(theta) * np.sin(phi), S1 * np.sin(theta) * np.cos(phi)])
 
-        theta = np.arccos(-1. + np.random.random() * (1. + 1.))
-        phi = 0. + np.random.random() * (2. * np.pi + 0.0)
+        theta = np.arccos(-1. + rng.random() * (1. + 1.))
+        phi = 0. + rng.random() * (2. * np.pi + 0.0)
         chi2 = np.array([S2 * np.cos(theta), S2 * np.sin(theta) * np.sin(phi), S2 * np.sin(theta) * np.cos(phi)])
 
-        theta = np.arccos(-1. + np.random.random() * (1. + 1.))
-        phi = 0. + np.random.random() * (2. * np.pi + 0.0)
+        theta = np.arccos(-1. + rng.random() * (1. + 1.))
+        phi = 0. + rng.random() * (2. * np.pi + 0.0)
         j = np.array([np.cos(theta), np.sin(theta) * np.sin(phi), np.sin(theta) * np.cos(phi)])
 
         chit = (q ** 2 * chi2 + chi1) / (1. + q) ** 2
@@ -127,7 +133,7 @@ class RemnantModelSimple(RemnantModel):
 
         vm = A * eta ** 2 * (1. - q) / (1. + q) * (1. + B * eta)
         vsL = H * eta ** 2 * deltap
-        Dphi = -1. + np.random.random() * (1. + 1.)
+        Dphi = -1. + rng.random() * (1. + 1.)
         vsp = 16. * eta ** 2 * (
                 deltaL * (V11 + 2. * VA * chip + 4. * VB * chip ** 2 + 8. * VC * chip ** 3) + 2. * chiL * deltap * (
                 C2 + 2. * C3 * chip)) * Dphi
@@ -169,14 +175,17 @@ class RemnantModelIslam26(RemnantModel):
         return ("This model uses Islam et al. (2026) (https://arxiv.org/pdf/2603.10170) for the kick velocity, and "
                 "RemnantModelVarma19Islam23 for the remnant mass and spin.")
 
-    def get_remnant(self, m1, m2, S1, S2):
+    def get_remnant(self, m1, m2, S1, S2, rng=None):
+        if rng is None:
+            rng = np.random.default_rng()
+
         q = m1 / m2
 
         if q <= 6:
-            theta_S1 = np.random.uniform(0, np.pi)
-            phi_S1 = np.random.uniform(0, 2 * np.pi)
-            theta_S2 = np.random.uniform(0, np.pi)
-            phi_S2 = np.random.uniform(0, 2 * np.pi)
+            theta_S1 = rng.uniform(0, np.pi)
+            phi_S1 = rng.uniform(0, 2 * np.pi)
+            theta_S2 = rng.uniform(0, np.pi)
+            phi_S2 = rng.uniform(0, 2 * np.pi)
 
             S1_vec = S1 * np.array([np.sin(theta_S1) * np.cos(phi_S1),
                                     np.sin(theta_S1) * np.sin(phi_S1),

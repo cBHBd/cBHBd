@@ -5,21 +5,21 @@ import numpy as np
 from scipy.optimize import bisect
 
 
-def sample_power_law(xmin, xmax, alpha, size):
+def sample_power_law(xmin, xmax, alpha, size, rng):
     # Sample from power law x^alpha with limits xmin, xmax
     # The parameter size can be an integer or an array for N-dim sampling
 
-    r = np.random.random_sample(size)
+    r = rng.random(size)
     return (-(xmin ** (1 + alpha) * (-1 + r)) + xmax ** (1 + alpha) * r) ** (1 / (1 + alpha))
 
 
-def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma, mmax_IMF):
+def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma, mmax_IMF, rng):
     # Sample the original population of stellar-mass BHs. The total mass of the population is (approximately) Mbh.
     # Remove BHs with a kick velocity greater than v_esc0. The progenitors follow an IMF with slope alpha between mmin
     # and mmax (possibly with different slopes at lower masses). FeH is the iron abundance, ifmr_str is the
     # initial-final mass relation after stellar evolution (including supernova prescriptions), and sigma is the
     # parameter of the Maxwellian distribution of kick velocities. mmax_IMF is the maximum mass of the IMF before aBHs
-    # (otherwise it's just equal to mmax)
+    # (otherwise it's just equal to mmax). rng is the random number generator
 
     # Load initial-final mass relation
     if "rapid" in ifmr_str:
@@ -49,11 +49,11 @@ def sample_BHs(Mbh, v_esc0, mmin, mmax, alpha, FeH, ifmr_str, sigma, mmax_IMF):
         nsamp = int(i * Mbh / 10)
 
         # Sample BH masses and kicks
-        mproj = sample_power_law(ifmr.BH_mi[0], mmax, alpha, nsamp)
+        mproj = sample_power_law(ifmr.BH_mi[0], mmax, alpha, nsamp, rng)
         mbh = ifmr.predict(mproj)
         mproj = mproj[mbh > 0.0]  # Remove massless remnants
         mbh = mbh[mbh > 0.0]  # Remove massless remnants
-        vkick = ssptools.kicks.maxwellian_kick_v(mproj, FeH=FeH, SNe_method=SN_method, vdisp=sigma)
+        vkick = ssptools.kicks.maxwellian_kick_v(mproj, FeH=FeH, SNe_method=SN_method, vdisp=sigma, rng=rng)
 
         # Remove kicked BHs (but always keep aBHs)
         mbh = mbh[(vkick <= v_esc0) | (mproj > mmax_IMF)]

@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from numpy.random import random
 
 from . import funcs
 from . import remnant
@@ -36,9 +35,6 @@ def _run_mergers(self):
         print(f"\t Initial density = {self.rhoh0 :.3g} M_sun/pc^3", flush=True)
         print(f"\t Seed = {self.seed}")
 
-    if self.seed is not None:
-        np.random.seed(self.seed)
-
     # Constants and conversion factors
     G_AU_MSUN_KMS = 887.1278675
     G_AU_MSUN_YR = 4 * np.pi ** 2
@@ -53,8 +49,10 @@ def _run_mergers(self):
 
     # Build array with BH properties for retained stellar-mass BHs
     Mtot, self.bhv = funcs.sample_BHs(self.cluster.Mbh[0], v_esc0, self.m_breaks[-2], self.mmax,
-                                      self.a_slopes[-1], self.FeH, self.ifmr, self.cluster.sigmans, self.mmax_IMF)
+                                      self.a_slopes[-1], self.FeH, self.ifmr, self.cluster.sigmans, self.mmax_IMF,
+                                      self.rng)
     Nbh0 = len(self.bhv)
+    self.bhv0 = self.bhv.copy()
 
     if self.verbose:
         print(f"\t Number of BHs after natal kicks: {Nbh0}")
@@ -97,7 +95,7 @@ def _run_mergers(self):
 
         # Sample m_1 according to a power law p(m_1) \propto m_1^{alpha_1}
         alpha_1 = 8 + 2 * alpha_samp
-        m1_t = ((mbhmax ** (1 + alpha_1) - mbhmin ** (1 + alpha_1)) * random() + mbhmin ** (1 + alpha_1)) ** (
+        m1_t = ((mbhmax ** (1 + alpha_1) - mbhmin ** (1 + alpha_1)) * self.rng.random() + mbhmin ** (1 + alpha_1)) ** (
                 1 / (1 + alpha_1))
         m_d[kmin] = np.nan
         k1 = np.nanargmin(np.abs(m_d - m1_t))
@@ -111,7 +109,7 @@ def _run_mergers(self):
         m_d[k1] = np.nan
         qmax = np.nanmax((m_d[m_d <= m1])) / m1
         qmin = mbhmin / m1
-        q_t = ((qmax ** (1 + alpha_2) - qmin ** (1 + alpha_2)) * random() + qmin ** (1 + alpha_2)) ** (
+        q_t = ((qmax ** (1 + alpha_2) - qmin ** (1 + alpha_2)) * self.rng.random() + qmin ** (1 + alpha_2)) ** (
                 1 / (1 + alpha_2))
         k2 = np.nanargmin(np.abs(m_d - q_t * m1))
         m_d[k1] = m1
@@ -145,7 +143,7 @@ def _run_mergers(self):
         # Form a new binary and run few-body interactions
         a = ah
         Ebin = Eh
-        e = np.sqrt(random())
+        e = np.sqrt(self.rng.random())
         merger_type = None
 
         while not lastBH:
@@ -169,8 +167,8 @@ def _run_mergers(self):
             # BINARY-SINGLE INTERACTION
             # Sample m_3 according to a power law p(m_3) \propto m_3^{alpha_3}
             alpha_3 = alpha_samp + 0.5
-            m3_t = ((mbhmax ** (1 + alpha_3) - mbhmin ** (1 + alpha_3)) * random() + mbhmin ** (1 + alpha_3)) ** (
-                    1 / (1 + alpha_3))
+            m3_t = ((mbhmax ** (1 + alpha_3) - mbhmin ** (1 + alpha_3)) * self.rng.random() + mbhmin ** (
+                    1 + alpha_3)) ** (1 / (1 + alpha_3))
             m_d[k1] = np.nan  # Do this for performance reasons
             m_d[k2] = np.nan
             k3 = np.nanargmin(np.abs(m_d - m3_t))
@@ -196,7 +194,7 @@ def _run_mergers(self):
             Rs = 4 * (m1 + m2) / c ** 2
             ell_cap = (Rs / a) ** (5 / 14)
             for i in range(Nrs):
-                e = np.sqrt(random())
+                e = np.sqrt(self.rng.random())
                 ell_b = np.sqrt(1 - e ** 2)
                 if ell_b < ell_cap:
                     is_capture = True
@@ -209,7 +207,7 @@ def _run_mergers(self):
             Ppres = funcs.prob_esc(m1, m2, m3)
             Pex2 = funcs.prob_esc(m1, m3, m2)
             exchange_outcomes = ["preservation", "exchange_1", "exchange_2"]
-            exchange_outcome = np.random.choice(exchange_outcomes, p=[Ppres, max(0.0, 1 - Pex2 - Ppres), Pex2])
+            exchange_outcome = self.rng.choice(exchange_outcomes, p=[Ppres, max(0.0, 1 - Pex2 - Ppres), Pex2])
             if exchange_outcome != "preservation":
                 if exchange_outcome == "exchange_1":
                     k1, k3 = k3, k1
@@ -258,8 +256,8 @@ def _run_mergers(self):
             if Nbh_core >= 5:  # We need two binaries, plus to form the second one we need at least three BHs
                 # Sample m_3 (same as m_1)
                 alpha_3 = 8 + 2 * alpha_samp
-                m3_t = ((mbhmax ** (1 + alpha_3) - mbhmin ** (1 + alpha_3)) * random() + mbhmin ** (1 + alpha_3)) ** (
-                        1 / (1 + alpha_3))
+                m3_t = ((mbhmax ** (1 + alpha_3) - mbhmin ** (1 + alpha_3)) * self.rng.random() + mbhmin ** (
+                        1 + alpha_3)) ** (1 / (1 + alpha_3))
                 m_d[k1] = np.nan
                 m_d[k2] = np.nan
                 kmin4b = np.nanargmin(m_d) if k2 == kmin or k1 == kmin else kmin
@@ -277,7 +275,7 @@ def _run_mergers(self):
                 assert (m_d <= m3).sum() >= 1, "Not enough BHs"
                 qmax = np.nanmax((m_d[m_d <= m3])) / m3
                 qmin = mbhmin / m3
-                q_t = ((qmax ** (3 + alpha_4) - qmin ** (3 + alpha_4)) * random() + qmin ** (3 + alpha_4)) ** (
+                q_t = ((qmax ** (3 + alpha_4) - qmin ** (3 + alpha_4)) * self.rng.random() + qmin ** (3 + alpha_4)) ** (
                         1 / (1 + alpha_4))
                 q_t = min(q_t, qmax)
                 k4 = np.nanargmin(np.abs(m_d - q_t * m3))
@@ -299,7 +297,7 @@ def _run_mergers(self):
                 pbb = 1 - np.exp(-pcapbb * Nbb)
 
                 # Check for captures in binary-binary encounters
-                if pbb >= random():
+                if pbb >= self.rng.random():
                     if a2 < a:  # Handle the edge case that the second BBH is smaller
                         k1, m1, S1, gen1, aBHgen1 = k3, m3, S3, gen3, aBHgen3
                         k2, m2, S2, gen2, aBHgen2 = k4, m4, S4, gen4, aBHgen4
@@ -340,7 +338,7 @@ def _run_mergers(self):
             tdi = 4.163e16 / (nBH * Sigma * vdBH_bs)  # In yr
             pdi = 1 - np.exp(-t3 / tdi)
             assert 0 <= pdi <= 1, "pdi not computed properly"
-            isdirectcapture = (pdi >= random())
+            isdirectcapture = (pdi >= self.rng.random())
             if isdirectcapture:
                 e = np.sqrt(1 - ell_cap ** 2)
                 merger_type = MergerOutcome.GWCaptureDirect
@@ -369,7 +367,7 @@ def _run_mergers(self):
                 raise ImportError(f"Error in loading remnant model {self.remnant_model}. If this can not be fixed, "
                                   f"consider using the (less accurate) remnant_model='RemnantModelSimple'\n\n{err}")
 
-        m_rem, chi_f, v_kick = CBHBD.remnant_models[self.remnant_model].get_remnant(m1, m2, S1, S2)
+        m_rem, chi_f, v_kick = CBHBD.remnant_models[self.remnant_model].get_remnant(m1, m2, S1, S2, rng=self.rng)
 
         assert 1 >= chi_f >= 0, f"Error in {chi_f = }"
         t_sim = t

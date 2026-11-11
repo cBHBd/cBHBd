@@ -75,6 +75,7 @@ class Cluster:
         self.Scrit = 0  # Constant value below which Spitzer's parameter is kept fixed. Facilitates ejection of last few BHs if a varying ejection rate is selected.
         self.tcc = None  # [Myr] Core collapse is set to None initially. It is either extracted from elapsed relaxations in the ode solver or calculated from the initial relaxation.
         self.RG_crit = 0.01  # [kpc] Critical value for the tidal radius below which we stop monitoring tidal spiralling of the cluster, if the option is activated.
+        self.rng = None  # Defined in CBHBD.
 
         # This part includes parameters that are on trial, intended for future additions. Some may be subjects to future fittings.
         # _________________________________________________
@@ -276,6 +277,7 @@ class Cluster:
             # Create BHMF.
             self.ibh_kwargs.setdefault('kick_vdisp', self.sigmans)  # Default arguments for ssp.
             self.ibh_kwargs.setdefault('BH_IFMR_method', self.ifmr)  # Default IFMR.
+            self.ibh_kwargs.setdefault('rng', self.rng)
 
             # Implement kicks, if activated, for this IMF, number of stars, with such metallicity, central escape velocity and BHMF conditions.
             self.ibh = ssptools.InitialBHPopulation.from_powerlaw(self.m_breaks, self.a_slopes, self.nbins, self.FeH,

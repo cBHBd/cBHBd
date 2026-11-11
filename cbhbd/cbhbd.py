@@ -99,11 +99,14 @@ class CBHBD:
         self.mmin = self.m_breaks[0]
         self.mmax = self.m_breaks[-1]
 
+        # Set the seed for the random number generator.
+        self.rng = np.random.default_rng(seed=self.seed)
+
         # Output
         self.cluster, self.mergers = None, None
         self.mIMBH, self.chiIMBH, self.genIMBH, self.aBHgenIMBH = None, None, None, None  # Properties of the most massive BH in the cluster.
         self.mIMBHej, self.chiIMBHej, self.genIMBHej = None, None, None  # Properties of the most massive BH ejected from the cluster.
-        self.bhv = None
+        self.bhv, self.bhv0 = None, None
 
         self._run(**kwargs)
 
