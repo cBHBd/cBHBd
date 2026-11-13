@@ -6,6 +6,17 @@ from . import remnant
 from .cbhbd import CBHBD
 from .cbhbd import MergerOutcome
 
+# Definition of the merger delay t_merge - t_sim written to the output (recorded by downstream tools so that older
+# outputs, which used the in-cluster timescale a/|da/dt| as the delay, can be corrected after the fact).
+T_MERGE_DEFINITION = "coalescence_mandel2021"
+
+
+def coalescence_time(a, e, m1, m2, G, c):
+    """GW coalescence time of a binary from (a, e): Mandel (2021, RNAAS 5, 223) fit to the Peters (1964) eq. 5.14
+    integral, accurate to about 3% for e <= 0.9999. Units follow G and c (cBHBd: AU, Msun, yr)."""
+    return 5 * c ** 5 * a ** 4 * (1 - e ** 2) ** (7 / 2) * (1 + 0.27 * e ** 10 + 0.33 * e ** 20 + 0.2 * e ** 1000) / (
+            256 * G ** 3 * m1 * m2 * (m1 + m2))
+
 
 def _get_IMBH_data(self):
     # In this calculation kmax explicitly includes stuff in dynamical friction
@@ -352,10 +363,10 @@ def _run_mergers(self):
         if m1 == 0 or m2 == 0:
             raise ValueError("Error in sampling, BH masses should not be 0")
 
-        # Compute GW timescale
-        R = (1 + 73 / 24 * e ** 2 + 37 / 96 * e ** 4)
-        t_gw = 5 * C_AU_YR ** 5 * a ** 4 * (1 - e ** 2) ** (7 / 2) / (
-                64 * G_AU_MSUN_YR ** 3 * m1 * m2 * (m1 + m2) * R)
+        # Compute the GW coalescence time (the merger delay). The in-cluster inspiral test above compares the
+        # instantaneous timescale a/|da/dt| with t3, as defined in Antonini & Gieles (2020); a/|da/dt| is 4 times the
+        # coalescence time for circular orbits and half of it as e -> 1, so it is not used as the delay.
+        t_gw = coalescence_time(a, e, m1, m2, G_AU_MSUN_YR, C_AU_YR)
 
         assert not np.isnan(t_gw), f"Error in {t_gw = }"
 
